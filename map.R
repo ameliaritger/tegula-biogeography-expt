@@ -32,3 +32,6 @@ ggplot() +
   theme(legend.position="none",
         axis.title=element_text(size=20),
         axis.text=element_text(size=15))
+
+ggsave("fig1.png", width=6, height=10)
+
