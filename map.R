@@ -1,15 +1,12 @@
 # these are packages you will need, but probably already have.
 # Don't bother installing if you already have them
-install.packages(c("ggplot2", "devtools", "dplyr", "stringr"))
-install.packages(c("maps", "mapdata"))
-devtools::install_github("dkahle/ggmap")
-
 library(tidyverse)
 library(ggplot2)
 library(ggmap)
 library(maps)
 library(mapdata)
 
+states <- map_data("state")
 west_coast <- subset(states, region %in% c("california", "oregon", "washington"))
 sites <- tribble(
   ~name, ~lat, ~long, ~color, ~shape,
