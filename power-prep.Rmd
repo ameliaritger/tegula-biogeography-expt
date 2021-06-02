@@ -4,18 +4,20 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message=FALSE)
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, error=FALSE)
 ```
 
 ## Load packages
 ```{r}
 library(tidyverse)
 library(janitor)
+library(here)
 ```
 
+# SWATH DATA
 ## Quick data tidy
 ```{r}
-swath <- read_csv("amelia_ritger_cbs_ltm_data_20210601-swath.csv") %>% 
+swath <- read_csv(here("data","amelia_ritger_cbs_ltm_data_20210601-swath.csv")) %>% 
   clean_names() %>% 
     rename("species" = "final_classification",
          "site"="intertidal_sitename") %>%
@@ -74,3 +76,42 @@ ggplot(swath_three, aes(fill=species, y=tot_sp, x=site)) +
 ```
 
 ### Damn, check out that (lack of diversity)!
+
+# QUADRAT DATA
+## Quick data tidy
+```{r}
+quad <- read_csv(here("data","amelia_ritger_cbs_ltm_data_20210601-quad.csv")) %>% 
+  clean_names() %>% 
+    rename("species" = "final_classification",
+         "site"="intertidal_sitename") %>%
+  select("site","survey_rep","year","month","transect","location","zone_code","species","count")
+```
+
+## Check out summary data
+```{r}
+sort(unique(quad$species))
+
+quad_clean <- quad %>% 
+  filter(species %in% c("acanthinucella spp","cancer antennarius","cancer spp", "kelletia kelletii", "leptasterias spp","nucella canaliculata","ucella emarginata; nucella ostrina","pachygrapsus crassipes","hemigrapsus nudus","pisaster ochraceus","tegula aureotincta","tegula brunnea","tegula eiseni","tegula funebralis","tegula gallina")) %>% 
+  group_by(site, year, species) %>% 
+  summarize(tot_sp=sum(count))
+```
+# In the future (when I have time) - check species list for predators I may have missed
+
+## check it with MARINe summarized data
+```{r}
+marine <- read_csv(here("data", "amelia_ritger_cbs_summary_2020_1005-quad.csv")) %>% 
+  clean_names() %>% 
+  filter(intertidal_sitename=="Alegria",
+         year=="2001")
+```
+
+Yep, looks good
+
+## Plot it up 
+```{r}
+ggplot(quad_clean, aes(fill=species, y=tot_sp, x=site)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap(~year)
+```
+
