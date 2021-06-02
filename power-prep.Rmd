@@ -7,12 +7,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, message=FALSE)
 ```
 
-Load packages
+## Load packages
 ```{r}
 library(tidyverse)
 library(janitor)
 ```
 
+## Quick data tidy
 ```{r}
 swath <- read_csv("amelia_ritger_cbs_ltm_data_20210601-swath.csv") %>% 
   clean_names() %>% 
@@ -23,7 +24,7 @@ swath <- read_csv("amelia_ritger_cbs_ltm_data_20210601-swath.csv") %>%
 sort(unique(swath$species))
 ```
 
-Check out summary data
+## Check out summary data
 ```{r}
 swath_clean <- swath %>% 
   filter(species!="no swath species found") %>% 
@@ -31,7 +32,7 @@ swath_clean <- swath %>%
   summarize(tot_sp=sum(count))
 ```
 
-Look into some high numbers
+## Look into some high numbers
 ```{r}
 swath_lol <- swath %>% 
   filter(species!="no swath species found",
@@ -47,7 +48,7 @@ marine <- read_csv("amelia_ritger_cbs_summary_2020_1005-swath.csv") %>%
 
 Yep, my quick wrangling matches up with the MARINe summarized data 
 
-Quick visualization 
+## Quick visualization 
 ```{r}
 ggplot(swath_clean, aes(fill=species, y=tot_sp, x=year)) + 
   geom_bar(position="fill", stat="identity") +
@@ -69,9 +70,7 @@ swath_three <- swath_clean %>%
 
 ggplot(swath_three, aes(fill=species, y=tot_sp, x=site)) + 
   geom_bar(position="fill", stat="identity")
-+
-  facet_wrap(~year)
 
 ```
 
-Damn, check out that (lack of diversity)!
+### Damn, check out that (lack of diversity)!
