@@ -1,0 +1,77 @@
+---
+title: "Preparing MARINe raw data for power analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE)
+```
+
+Load packages
+```{r}
+library(tidyverse)
+library(janitor)
+```
+
+```{r}
+swath <- read_csv("amelia_ritger_cbs_ltm_data_20210601-swath.csv") %>% 
+  clean_names() %>% 
+    rename("species" = "final_classification",
+         "site"="intertidal_sitename") %>%
+  select("site","site_code","survey_rep","year","month","transect","location","species","count")
+
+sort(unique(swath$species))
+```
+
+Check out summary data
+```{r}
+swath_clean <- swath %>% 
+  filter(species!="no swath species found") %>% 
+  group_by(site, year, species) %>% 
+  summarize(tot_sp=sum(count))
+```
+
+Look into some high numbers
+```{r}
+swath_lol <- swath %>% 
+  filter(species!="no swath species found",
+         site=="Lompoc Landing",
+         year=="2014")
+
+#Confirm with MARINe summary data for swath counts
+marine <- read_csv("amelia_ritger_cbs_summary_2020_1005-swath.csv") %>% 
+  clean_names() %>% 
+  filter(intertidal_sitename=="Lompoc Landing",
+         year=="2014")
+```
+
+Yep, my quick wrangling matches up with the MARINe summarized data 
+
+Quick visualization 
+```{r}
+ggplot(swath_clean, aes(fill=species, y=tot_sp, x=year)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap(~site)
+
+#Look at it each year
+ggplot(swath_clean, aes(fill=species, y=tot_sp, x=site)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap(~year)
+#+facet_wrap(~site)
+```
+
+I want to exclude Cabrillo (it's SO different from the other sites) and compare only years where all three other sites were measured - so 2016, 2018, 2019, and 2020
+
+```{r}
+swath_three <- swath_clean %>% 
+  filter(site!="Cabrillo III",
+         year %in% c(2016, 2018, 2019, 2020))
+
+ggplot(swath_three, aes(fill=species, y=tot_sp, x=site)) + 
+  geom_bar(position="fill", stat="identity")
++
+  facet_wrap(~year)
+
+```
+
+Damn, check out that (lack of diversity)!
