@@ -114,6 +114,9 @@ Yep, looks good
 ggplot(quad_clean, aes(fill=species, y=tot_sp, x=site)) + 
   geom_bar(position="fill", stat="identity") + #facet_wrap(~year)
   scale_x_discrete(limits = c("Bodega", "Lompoc Landing", "Alegria", "Cabrillo III"))
+
+ggsave("figures/composition_site.png")
+
 ```
 
 ## Run an NMDS on the data to compare community composition across sites
@@ -129,7 +132,7 @@ example_NMDS=metaMDS(community_matrix, # Our community-by-species matrix
 
 #do it with my data
 quad_matrix_df <- quad %>%
-  filter(species %in% c("acanthinucella spp","cancer antennarius","cancer spp", "kelletia kelletii", "leptasterias spp","nucella canaliculata","ucella emarginata; nucella ostrina","pachygrapsus crassipes","hemigrapsus nudus","pisaster ochraceus","tegula aureotincta","tegula brunnea","tegula eiseni","tegula funebralis","tegula gallina")) %>%
+  filter(species %in% c("acanthinucella spp","cancer antennarius","cancer spp", "kelletia kelletii", "leptasterias spp","nucella canaliculata","nucella emarginata; nucella ostrina","pachygrapsus crassipes","hemigrapsus nudus","pisaster ochraceus","tegula aureotincta","tegula brunnea","tegula eiseni","tegula funebralis","tegula gallina")) %>%
   group_by(site, species) %>% 
   summarize(tot_sp=sum(count)) %>% 
   pivot_wider(names_from=species, values_from=tot_sp) %>% 
@@ -146,5 +149,70 @@ quad_nmds
 
 stressplot(quad_nmds)
 plot(quad_nmds, type="t")
+```
+
+# Run power analysis on only species found at all sites across sites
+
+## Nucella
+```{r}
+quad_nucella <- quad %>%
+  filter(species %in% c("nucella emarginata; nucella ostrina"),
+         survey_rep<ifelse(site=="Cabrillo III", 5, 2)) %>% #Cabrillo only counted nucella on the 4th replicate of surveys so make ifelse
+  group_by(site) %>% 
+  summarize(tot=n(),
+            avg=mean(count),
+            var=var(count))
+
+nucella_avg <- quad_nucella %>% 
+  pull(avg)
+nucella_var <- quad_nucella %>% 
+  pull(var) %>% 
+  mean()
+nucella_n <- quad_nucella %>% 
+  pull(tot) %>% 
+  mean() %>% 
+  ceiling() #round up to whole number for simulation
+```
+
+Use simulation to run power analysis for comparing nucella across sites
+```{r}
+n.sim <- 1000         ## number of simulations
+mu    <- nucella_avg  ## site means
+sigma2<- nucella_var  ## error variance (averaged across all sites) assumption: 7.5
+n     <- nucella_n    ## number of observations per site (mean across all years: 31)
+
+n     <- 16
+g     <- length(mu) 
+group <- factor(rep(LETTERS[1:g], each = n))
+
+results <- numeric(n.sim) ## vector to store results in
+
+for(i in 1:n.sim){
+  ## Simulate new response, build data set
+  y <- rnorm(n * g, mean = rep(mu, each = n), sd = sqrt(sigma2))
+  data <- data.frame(y = y, group = group)
+ 
+  ## Fit one-way ANOVA model
+  fit  <- aov(y ~ group, data = data)
+  
+  ## Extract result of global F-test
+  results[i] <- summary(fit)[[1]][1, "Pr(>F)"] < 0.05 ## 1 = reject
+}
+
+mean(results) ## proportion of simulation runs that rejected H_0
+```
+
+
+```{r}
+group_by(site) %>% 
+  summarize(tot_sp=sum(count))
+
+quad_pachy <- quad %>%
+  filter(species %in% c("pachygrapsus crassipes")) %>%
+  
+quad_tegula <- quad %>%
+  filter(species %in% c("tegula funebralis"))
+
+pwr.anova.test(k = , n = , f = , sig.level = , power = ) 
 ```
 
