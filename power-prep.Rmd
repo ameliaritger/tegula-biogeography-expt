@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE, message=FALSE, error=FALSE)
 library(tidyverse)
 library(janitor)
 library(here)
+library(vegan)
 ```
 
 # SWATH DATA
@@ -42,7 +43,7 @@ swath_lol <- swath %>%
          year=="2014")
 
 #Confirm with MARINe summary data for swath counts
-marine <- read_csv("amelia_ritger_cbs_summary_2020_1005-swath.csv") %>% 
+marine <- read_csv(here("data","amelia_ritger_cbs_summary_2020_1005-swath.csv")) %>% 
   clean_names() %>% 
   filter(intertidal_sitename=="Lompoc Landing",
          year=="2014")
@@ -111,7 +112,39 @@ Yep, looks good
 ## Plot it up 
 ```{r}
 ggplot(quad_clean, aes(fill=species, y=tot_sp, x=site)) + 
-  geom_bar(position="fill", stat="identity") +
-  facet_wrap(~year)
+  geom_bar(position="fill", stat="identity") + #facet_wrap(~year)
+  scale_x_discrete(limits = c("Bodega", "Lompoc Landing", "Alegria", "Cabrillo III"))
+```
+
+## Run an NMDS on the data to compare community composition across sites
+```{r}
+#example community-by-species matrix, nmds
+set.seed(2)
+community_matrix=matrix(
+   sample(1:100,300,replace=T),nrow=10,
+   dimnames=list(paste("community",1:10,sep=""),paste("sp",1:30,sep="")))
+
+example_NMDS=metaMDS(community_matrix, # Our community-by-species matrix
+                     k=2) # The number of reduced dimensions
+
+#do it with my data
+quad_matrix_df <- quad %>%
+  filter(species %in% c("acanthinucella spp","cancer antennarius","cancer spp", "kelletia kelletii", "leptasterias spp","nucella canaliculata","ucella emarginata; nucella ostrina","pachygrapsus crassipes","hemigrapsus nudus","pisaster ochraceus","tegula aureotincta","tegula brunnea","tegula eiseni","tegula funebralis","tegula gallina")) %>%
+  group_by(site, species) %>% 
+  summarize(tot_sp=sum(count)) %>% 
+  pivot_wider(names_from=species, values_from=tot_sp) %>% 
+  replace(is.na(.), 0)
+
+#convert df to matrix for NMDS
+quad_matrix <- data.matrix(quad_matrix_df)
+rownames(quad_matrix) <- c("Alegria", "Bodega", "Cabrillo III", "Lompoc Landing") #rename matrix row names to sites
+quad_matrix <- quad_matrix[,-1] #remove first column
+
+#run the NMDS
+quad_nmds <- metaMDS(quad_matrix, k=2) #k is the number of reduced dimensions
+quad_nmds
+
+stressplot(quad_nmds)
+plot(quad_nmds, type="t")
 ```
 
