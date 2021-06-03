@@ -176,12 +176,12 @@ nucella_n <- quad_nucella %>%
 
 Use simulation to run power analysis for comparing nucella across sites
 ```{r}
-n.sim <- 1000         ## number of simulations
+n.sim <- 10000         ## number of simulations
 mu    <- nucella_avg  ## site means
 sigma2<- nucella_var  ## error variance (averaged across all sites) assumption: 7.5
 n     <- nucella_n    ## number of observations per site (mean across all years: 31)
 
-n     <- 16
+n     <- 17           # coerce new number for replicate size
 g     <- length(mu) 
 group <- factor(rep(LETTERS[1:g], each = n))
 
@@ -201,18 +201,125 @@ for(i in 1:n.sim){
 
 mean(results) ## proportion of simulation runs that rejected H_0
 ```
+n = 17, 82%
 
-
+## Pachygraspus
 ```{r}
-group_by(site) %>% 
-  summarize(tot_sp=sum(count))
-
 quad_pachy <- quad %>%
-  filter(species %in% c("pachygrapsus crassipes")) %>%
-  
-quad_tegula <- quad %>%
-  filter(species %in% c("tegula funebralis"))
+  filter(species %in% c("pachygrapsus crassipes"),
+         survey_rep==ifelse(site=="Cabrillo III", 4, 
+                            ifelse(site=="Bodega", 7,
+                                   ifelse(site=="Alegria", 6,1)))) %>%
+  group_by(site) %>% 
+  summarize(tot=n(),
+            avg=mean(count),
+            var=var(count))
 
-pwr.anova.test(k = , n = , f = , sig.level = , power = ) 
+pachy_avg <- quad_pachy %>% 
+  pull(avg)
+pachy_var <- quad_pachy %>% 
+  pull(var) %>% 
+  mean()
+pachy_n <- quad_pachy %>% 
+  pull(tot) %>% 
+  mean() %>% 
+  ceiling() #round up to whole number for simulation
+```
+
+Use simulation to run power analysis for comparing pachygraspus across sites
+```{r}
+n.sim <- 10000         ## number of simulations
+mu    <- pachy_avg  ## site means
+sigma2<- pachy_var  ## error variance (averaged across all sites) assumption: 7.5
+n     <- pachy_n    ## number of observations per site (mean across all years: 31)
+
+n     <- 25           # coerce new number for replicate size
+g     <- length(mu) 
+group <- factor(rep(LETTERS[1:g], each = n))
+
+results <- numeric(n.sim) ## vector to store results in
+
+for(i in 1:n.sim){
+  ## Simulate new response, build data set
+  y <- rnorm(n * g, mean = rep(mu, each = n), sd = sqrt(sigma2))
+  data <- data.frame(y = y, group = group)
+ 
+  ## Fit one-way ANOVA model
+  fit  <- aov(y ~ group, data = data)
+  
+  ## Extract result of global F-test
+  results[i] <- summary(fit)[[1]][1, "Pr(>F)"] < 0.05 ## 1 = reject
+}
+
+mean(results) ## proportion of simulation runs that rejected H_0
+```
+n = 25, 81%
+
+## Tegula
+```{r}
+quad_tegula <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         survey_rep==ifelse(site=="Cabrillo III", 4, 
+                            ifelse(site=="Bodega", 7,
+                                   ifelse(site=="Alegria", 4, 1)))) %>%
+  group_by(site) %>% 
+  summarize(tot=n(),
+            avg=mean(count),
+            var=var(count))
+
+tegula_avg <- quad_tegula %>% 
+  pull(avg)
+tegula_var <- quad_tegula %>% 
+  pull(var) %>% 
+  mean()
+tegula_n <- quad_tegula %>% 
+  pull(tot) %>% 
+  mean() %>% 
+  ceiling() #round up to whole number for simulation
+```
+
+Use simulation to run power analysis for comparing tegula across sites
+```{r}
+n.sim <- 10000         ## number of simulations
+mu    <- tegula_avg  ## site means
+sigma2<- tegula_var  ## error variance (averaged across all sites) assumption: 7.5
+n     <- tegula_n    ## number of observations per site (mean across all years: 31)
+
+n     <- 26           # (if I am running two sets of surveys in a year)
+g     <- length(mu) 
+group <- factor(rep(LETTERS[1:g], each = n))
+
+results <- numeric(n.sim) ## vector to store results in
+
+for(i in 1:n.sim){
+  ## Simulate new response, build data set
+  y <- rnorm(n * g, mean = rep(mu, each = n), sd = sqrt(sigma2))
+  data <- data.frame(y = y, group = group)
+ 
+  ## Fit one-way ANOVA model
+  fit  <- aov(y ~ group, data = data)
+  
+  ## Extract result of global F-test
+  results[i] <- summary(fit)[[1]][1, "Pr(>F)"] < 0.05 ## 1 = reject
+}
+
+mean(results) ## proportion of simulation runs that rejected H_0
+```
+n = 26, 80%
+
+Traditional ANOVA power test (let's use Tegula as an example)
+```{r}
+library(pwr)
+pwr.anova.test(k = 4, f = 0.25, sig.level = 0.01 , power = 0.8) # 25% effect size
+```
+Damn, need an n = 63 for 80% power
+
+So... at least using my janky power analyses methods, I'll need to do all 11 quadrat replicates to measure significant differences *between* sites
+
+Now let's look at replication needed within a site to capture sufficient variation
+
+# Run power analysis on Tegula (since it has the mostn intra-site variation)
+```{r}
+
 ```
 
