@@ -318,8 +318,235 @@ So... at least using my janky power analyses methods, I'll need to do all 11 qua
 
 Now let's look at replication needed within a site to capture sufficient variation
 
-# Run power analysis on Tegula (since it has the mostn intra-site variation)
-```{r}
+# Run power analysis on Tegula (since it has the most intra-site variation) for each site
 
+## Bodega
+```{r}
+quad_intra_b <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Bodega") %>% 
+  group_by(year) %>% 
+  summarize(tot=n(),
+            avg=mean(count),
+            var=var(count))
+
+tegula_avg <- quad_intra_b %>% 
+  pull(avg)
+tegula_var <- quad_intra_b %>% 
+  pull(var) %>% 
+  mean()
+tegula_n <- quad_intra_b %>% 
+  pull(tot) %>% 
+  mean() %>% 
+  ceiling() #round up to whole number for simulation
 ```
+
+Use simulation to run power analysis for comparing tegula across years sites
+```{r}
+n.sim <- 10000         ## number of simulations
+mu    <- tegula_avg  ## site means
+sigma2<- tegula_var  ## error variance (averaged across all sites) assumption: 7.5
+n     <- tegula_n    ## number of observations per site (mean across all years: 9)
+
+n     <- 24           # (if I am running two sets of surveys in a year)
+g     <- length(mu) 
+group <- factor(rep(LETTERS[1:g], each = n))
+
+results <- numeric(n.sim) ## vector to store results in
+
+for(i in 1:n.sim){
+  ## Simulate new response, build data set
+  y <- rnorm(n * g, mean = rep(mu, each = n), sd = sqrt(sigma2))
+  data <- data.frame(y = y, group = group)
+ 
+  ## Fit one-way ANOVA model
+  fit  <- aov(y ~ group, data = data)
+  
+  ## Extract result of global F-test
+  results[i] <- summary(fit)[[1]][1, "Pr(>F)"] < 0.05 ## 1 = reject
+}
+
+mean(results) ## proportion of simulation runs that rejected H_0
+```
+n = 24 for 80% power at BML
+
+## Alegria 
+```{r}
+quad_intra_a <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Alegria") %>% 
+  group_by(year) %>% 
+  summarize(tot=n(),
+            avg=mean(count),
+            var=var(count))
+
+tegula_avg <- quad_intra_a %>% 
+  pull(avg)
+tegula_var <- quad_intra_a %>% 
+  pull(var) %>% 
+  mean()
+tegula_n <- quad_intra_a %>% 
+  pull(tot) %>% 
+  mean() %>% 
+  ceiling() #round up to whole number for simulation
+```
+
+Use simulation to run power analysis for comparing tegula across years
+```{r}
+n.sim <- 10000         ## number of simulations
+mu    <- tegula_avg  ## site means
+sigma2<- tegula_var  ## error variance (averaged across all sites) assumption: 7.5
+n     <- tegula_n    ## number of observations per site (mean across all years: 15)
+
+n     <- 28           # (if I am running two sets of surveys in a year)
+g     <- length(mu) 
+group <- factor(rep(LETTERS[1:g], each = n))
+
+results <- numeric(n.sim) ## vector to store results in
+
+for(i in 1:n.sim){
+  ## Simulate new response, build data set
+  y <- rnorm(n * g, mean = rep(mu, each = n), sd = sqrt(sigma2))
+  data <- data.frame(y = y, group = group)
+ 
+  ## Fit one-way ANOVA model
+  fit  <- aov(y ~ group, data = data)
+  
+  ## Extract result of global F-test
+  results[i] <- summary(fit)[[1]][1, "Pr(>F)"] < 0.05 ## 1 = reject
+}
+
+mean(results) ## proportion of simulation runs that rejected H_0
+```
+n = 28 for 80% power at Alegria
+
+## Cabrillo 
+```{r}
+quad_intra_c <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Cabrillo III") %>% 
+  group_by(year) %>% 
+  summarize(tot=n(),
+            avg=mean(count),
+            var=var(count))
+
+tegula_avg <- quad_intra_c %>% 
+  pull(avg)
+tegula_var <- quad_intra_c %>% 
+  pull(var) %>% 
+  mean()
+tegula_n <- quad_intra_c %>% 
+  pull(tot) %>% 
+  mean() %>% 
+  ceiling() #round up to whole number for simulation
+```
+
+Use simulation to run power analysis for comparing tegula across years
+```{r}
+n.sim <- 10000         ## number of simulations
+mu    <- tegula_avg  ## site means
+sigma2<- tegula_var  ## error variance (averaged across all sites) assumption: 7.5
+n     <- tegula_n    ## number of observations per site (mean across all years: 6)
+
+n     <- 9           # (if I am running two sets of surveys in a year)
+g     <- length(mu) 
+group <- factor(rep(LETTERS[1:g], each = n))
+
+results <- numeric(n.sim) ## vector to store results in
+
+for(i in 1:n.sim){
+  ## Simulate new response, build data set
+  y <- rnorm(n * g, mean = rep(mu, each = n), sd = sqrt(sigma2))
+  data <- data.frame(y = y, group = group)
+ 
+  ## Fit one-way ANOVA model
+  fit  <- aov(y ~ group, data = data)
+  
+  ## Extract result of global F-test
+  results[i] <- summary(fit)[[1]][1, "Pr(>F)"] < 0.05 ## 1 = reject
+}
+
+mean(results) ## proportion of simulation runs that rejected H_0
+```
+n = 9 for 80% power at Cabrillo III
+
+# Run power analysis on Tegula at each year within Alegria
+
+## 2001
+```{r}
+quad_intra_2001 <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Alegria",
+         year == "2001") %>% 
+  group_by(transect) %>% 
+  summarize(tot=n(),
+            avg=mean(count),
+            var=var(count)) %>%
+  add_row(transect = 3, tot = 0, avg = 0, var = 0) %>% 
+  replace(is.na(.), 0)
+  
+
+tegula_avg <- quad_intra_2001 %>% 
+  pull(avg)
+tegula_var <- quad_intra_2001 %>% 
+  pull(var) %>% 
+  mean()
+tegula_n <- quad_intra_2001 %>% 
+  pull(tot) %>% 
+  mean() %>% 
+  ceiling() #round up to whole number for simulation
+```
+
+## 2012
+```{r}
+quad_intra_2012 <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Alegria",
+         year == "2012") %>% 
+  group_by(transect) %>% 
+  summarize(tot=n(),
+            avg=mean(count),
+            var=var(count)) %>%
+  replace(is.na(.), 0)
+
+tegula_avg <- quad_intra_2012 %>% 
+  pull(avg)
+tegula_var <- quad_intra_2012 %>% 
+  pull(var) %>% 
+  mean()
+tegula_n <- quad_intra_2012 %>% 
+  pull(tot) %>% 
+  mean() %>% 
+  ceiling() #round up to whole number for simulation
+```
+
+Use simulation to run power analysis for comparing tegula across years
+```{r}
+n.sim <- 10000         ## number of simulations
+mu    <- tegula_avg  ## transect means
+sigma2<- tegula_var  ## error variance (averaged across all transects) assumption: 7.5
+n     <- tegula_n    ## number of observations per transect (n=3 for 2012, n=2 for 2001)
+
+n     <- 2           # (if I am running two sets of surveys in a year)
+g     <- length(mu) 
+group <- factor(rep(LETTERS[1:g], each = n))
+
+results <- numeric(n.sim) ## vector to store results in
+
+for(i in 1:n.sim){
+  ## Simulate new response, build data set
+  y <- rnorm(n * g, mean = rep(mu, each = n), sd = sqrt(sigma2))
+  data <- data.frame(y = y, group = group)
+ 
+  ## Fit one-way ANOVA model
+  fit  <- aov(y ~ group, data = data)
+  
+  ## Extract result of global F-test
+  results[i] <- summary(fit)[[1]][1, "Pr(>F)"] < 0.05 ## 1 = reject
+}
+
+mean(results) ## proportion of simulation runs that rejected H_0
+```
+n = 7 transects for 2012 to capture significant variation at Alegria ; n = 2 (?!) for 2001
+
 
