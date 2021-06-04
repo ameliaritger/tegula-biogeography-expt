@@ -93,7 +93,7 @@ quad <- read_csv(here("data","amelia_ritger_cbs_ltm_data_20210601-quad.csv")) %>
 sort(unique(quad$species))
 
 quad_clean <- quad %>% 
-  filter(species %in% c("acanthinucella spp","cancer antennarius","cancer spp", "kelletia kelletii", "leptasterias spp","nucella canaliculata","ucella emarginata; nucella ostrina","pachygrapsus crassipes","hemigrapsus nudus","pisaster ochraceus","tegula aureotincta","tegula brunnea","tegula eiseni","tegula funebralis","tegula gallina")) %>% 
+  filter(species %in% c("acanthinucella spp","cancer antennarius","cancer spp", "kelletia kelletii", "leptasterias spp","nucella canaliculata","nucella emarginata; nucella ostrina","pachygrapsus crassipes","hemigrapsus nudus","pisaster ochraceus","tegula aureotincta","tegula brunnea","tegula eiseni","tegula funebralis","tegula gallina")) %>% 
   group_by(site, year, species) %>% 
   summarize(tot_sp=sum(count))
 ```
@@ -156,7 +156,7 @@ plot(quad_nmds, type="t")
 ## Nucella
 ```{r}
 quad_nucella <- quad %>%
-  filter(species %in% c("nucella emarginata; nucella ostrina"),
+  filter(species %in% c("nucella canaliculata", "nucella emarginata; nucella ostrina", "acanthinucella spp"),
          survey_rep<ifelse(site=="Cabrillo III", 5, 2)) %>% #Cabrillo only counted nucella on the 4th replicate of surveys so make ifelse
   group_by(site) %>% 
   summarize(tot=n(),
@@ -179,9 +179,9 @@ Use simulation to run power analysis for comparing nucella across sites
 n.sim <- 10000         ## number of simulations
 mu    <- nucella_avg  ## site means
 sigma2<- nucella_var  ## error variance (averaged across all sites) assumption: 7.5
-n     <- nucella_n    ## number of observations per site (mean across all years: 31)
+n     <- nucella_n    ## number of observations per site (mean across all years: 14)
 
-n     <- 17           # coerce new number for replicate size
+n     <- 30           # coerce new number for replicate size
 g     <- length(mu) 
 group <- factor(rep(LETTERS[1:g], each = n))
 
@@ -201,7 +201,7 @@ for(i in 1:n.sim){
 
 mean(results) ## proportion of simulation runs that rejected H_0
 ```
-n = 17, 82%
+n = 30, 80%
 
 ## Pachygraspus
 ```{r}
@@ -549,4 +549,112 @@ mean(results) ## proportion of simulation runs that rejected H_0
 ```
 n = 7 transects for 2012 to capture significant variation at Alegria ; n = 2 (?!) for 2001
 
+----------------------------------
+# SUMMARY
 
+I don't really trust these power analyses, so I am going to pick a year for each site with a lot of variation and eye ball it to see how many transects I should be running, AND whether I need to run high and mid transects for Tegula and nucella
+
+# BML
+
+## Tegula and Nucella, 2017 
+```{r}
+bml_t <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Bodega",
+         year == "2017")
+
+bml_n <- quad %>%
+  filter(species %in% c("nucella canaliculata", "nucella emarginata; nucella ostrina", "acanthinucella spp"),
+         site == "Bodega",
+         year == "2017")
+```
+
+Definitely need high and mid quadrats for Tegula
+Don't need all 11 transects most likely
+
+Nucella is definitely only in mid (and low)
+Don't need all 11 transects (maybe half of them)
+
+# LOL
+
+## Tegula and nucella, 2007
+```{r}
+lol_t <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Lompoc Landing")
+
+lol_n <- quad %>%
+  filter(species %in% c("nucella canaliculata", "nucella emarginata; nucella ostrina", "acanthinucella spp"),
+         site == "Lompoc Landing")
+```
+
+Definitely need high and mid quadrats for Tegula
+Don't need all 11 transects most likely
+
+Nucella is definitely only in mid (and low)
+Don't need all 11 transects most likely
+
+# Alegria
+
+## Tegula and nucella, 2012
+```{r}
+alg_t <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Alegria",
+         year == "2012")
+
+alg_n <- quad %>%
+  filter(species %in% c("nucella canaliculata", "nucella emarginata; nucella ostrina", "acanthinucella spp"),
+         site == "Alegria",
+         year == "2012")
+```
+
+Definitely need high and mid quadrats (and low?!) for Tegula
+Probably need all 11 transects in high to capture Tegula, Tegula can be super spotty but also really abundant when it is found in mid
+
+Can capture Nucella sometimes in high, and definitely mid
+In high, would need over half of high quadrats to get Nucella at all
+In mid, would probably only need at least half quadrats to capture Nucella variation
+
+
+# Cabrillo III
+
+## Tegula and nucella, 2012/2017
+```{r}
+cnm_t <- quad %>%
+  filter(species %in% c("tegula funebralis"),
+         site == "Cabrillo III",
+         year == "2017")
+
+cnm_n <- quad %>%
+  filter(species %in% c("nucella canaliculata", "nucella emarginata; nucella ostrina", "acanthinucella spp"),
+         site == "Cabrillo III",
+         year == "2017")
+
+#look at all species at CNM in 2017
+cnm <- quad %>%
+  filter(site == "Cabrillo III",
+         year == "2017")
+```
+
+Tegula is entirely in high zone at Cabrillo, need at least half of quadrats to capture Tegula populations (ideally run all 11)
+
+Need some mid quadrats to capture pachygraspus, need probably all high quadrats to capture nucella
+
+# Action items
+
+## BML
+
+Run fewer than 11 quadrats in high, run nearly half of the 11 quadrats in mid
+
+# LOL
+
+Run fewer than 11 quadrats in high, run fewer than 11 quadrats in mid
+
+# Alegria
+
+Run all 11 quadrats in high, run nearly 11 quadrats in mid
+
+# Cabrillo III
+
+Run all 11 quadrats in high, half quadrats in mid for pachygraspus
