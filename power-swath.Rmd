@@ -1,7 +1,5 @@
 ---
 title: "Checking out MARINe raw Swath data for power analysis""
-author: "Amelia Ritger"
-date: "6/7/2021"
 output: html_document
 ---
 
@@ -75,3 +73,54 @@ swath_three <- swath_clean %>%
 
 ggplot(swath_three, aes(fill=species, y=tot_sp, x=site)) + 
   geom_bar(position="fill", stat="identity")
+```
+
+
+# Power analysis (eyeballin' it)
+
+How many swaths do I need to do per site? (aka is 4 enough?)
+
+### Bodega
+```{r}
+bb_swath <- swath %>% 
+  filter(site == "Bodega",
+         species %in% c("leptasterias spp", "pisaster ochraceus"),
+         year == "2019") %>% 
+  group_by(transect) %>% 
+  summarize(tot_sp=sum(count))
+```
+6/11 transects had pisaster in 2020
+11/11 transects had pisaster in 2019
+
+### LOL
+```{r}
+lol_swath <- swath %>% 
+  filter(site == "Lompoc Landing",
+         species %in% c("leptasterias spp", "pisaster ochraceus"),
+         year == "2020") %>% 
+  group_by(transect) %>% 
+  summarize(tot_sp=sum(count))
+```
+11/11 transects had pisaster in 2020
+11/11 transects had pisaster in 2019
+
+### Alegria
+```{r}
+alg_swath <- swath %>% 
+  filter(site == "Alegria",
+         species %in% c("leptasterias spp", "pisaster ochraceus"),
+         year == "2019") %>% 
+  group_by(transect) %>% 
+  summarize(tot_sp=sum(count))
+```
+7/11 transects had pisaster in 2020
+5/11 transects had pisaster in 2019
+
+### Cabrillo III
+```{r}
+cnm_swath <- swath %>% 
+  filter(site == "Cabrillo III")
+```
+Bunch o' bat stars
+
+4 swaths **should** be enough, just from eyeballin' it.
