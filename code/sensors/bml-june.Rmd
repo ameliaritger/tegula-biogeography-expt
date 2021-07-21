@@ -1,0 +1,41 @@
+---
+title: "BML sensor First 2 weeks"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, error=FALSE)
+```
+
+## Load packages
+```{r}
+library(tidyverse)
+#library(janitor)
+library(here)
+library(lubridate)
+library(scales)
+```
+
+## Read in the data
+```{r}
+bml <- read_csv(here("data","sensors", "bml-6.10.2021-4_OMEGAS.csv")) %>% 
+  mutate(date=as_date(Date, format = '%m/%d/%Y'),
+         time=hms::as_hms(Time),
+         date_time=as.POSIXct(paste(date,time)),
+         date_time24=as.POSIXct(strftime(date_time, format = "%Y-%m-%d %H:%M")))
+```
+
+## Plot it up
+```{r}
+ggplot(bml, aes(x=date_time24, y=pH, group=1)) +
+  geom_line(size=1) +
+  geom_point(size=0.5) +
+  scale_x_datetime(breaks = scales::date_breaks("12 hours"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date time") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=90))
+
+ggsave("figures/bml-june2021.png", height=10, width=25, units="cm")
+```
+

@@ -1,0 +1,126 @@
+---
+title: "Checking out MARINe raw Swath data for power analysis""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, error=FALSE)
+```
+
+## Load packages
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+library(vegan)
+```
+
+# SWATH DATA
+## Quick data tidy
+```{r}
+swath <- read_csv(here("data","amelia_ritger_cbs_ltm_data_20210601-swath.csv")) %>% 
+  clean_names() %>% 
+    rename("species" = "final_classification",
+         "site"="intertidal_sitename") %>%
+  select("site","site_code","survey_rep","year","month","transect","location","species","count")
+
+sort(unique(swath$species))
+```
+
+## Check out summary data
+```{r}
+swath_clean <- swath %>% 
+  filter(species!="no swath species found") %>% 
+  group_by(site, year, species) %>% 
+  summarize(tot_sp=sum(count))
+```
+
+## Look into some high numbers
+```{r}
+swath_lol <- swath %>% 
+  filter(species!="no swath species found",
+         site=="Lompoc Landing",
+         year=="2014")
+
+#Confirm with MARINe summary data for swath counts
+marine <- read_csv(here("data","amelia_ritger_cbs_summary_2020_1005-swath.csv")) %>% 
+  clean_names() %>% 
+  filter(intertidal_sitename=="Lompoc Landing",
+         year=="2014")
+```
+
+Yep, my quick wrangling matches up with the MARINe summarized data 
+
+## Quick visualization 
+```{r}
+ggplot(swath_clean, aes(fill=species, y=tot_sp, x=year)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap(~site)
+
+#Look at it each year
+ggplot(swath_clean, aes(fill=species, y=tot_sp, x=site)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap(~year)
+#+facet_wrap(~site)
+```
+
+I want to exclude Cabrillo (it's SO different from the other sites) and compare only years where all three other sites were measured - so 2016, 2018, 2019, and 2020
+
+```{r}
+swath_three <- swath_clean %>% 
+  filter(site!="Cabrillo III",
+         year %in% c(2016, 2018, 2019, 2020))
+
+ggplot(swath_three, aes(fill=species, y=tot_sp, x=site)) + 
+  geom_bar(position="fill", stat="identity")
+```
+
+
+# Power analysis (eyeballin' it)
+
+How many swaths do I need to do per site? (aka is 4 enough?)
+
+### Bodega
+```{r}
+bb_swath <- swath %>% 
+  filter(site == "Bodega",
+         species %in% c("leptasterias spp", "pisaster ochraceus"),
+         year == "2019") %>% 
+  group_by(transect) %>% 
+  summarize(tot_sp=sum(count))
+```
+6/11 transects had pisaster in 2020
+11/11 transects had pisaster in 2019
+
+### LOL
+```{r}
+lol_swath <- swath %>% 
+  filter(site == "Lompoc Landing",
+         species %in% c("leptasterias spp", "pisaster ochraceus"),
+         year == "2020") %>% 
+  group_by(transect) %>% 
+  summarize(tot_sp=sum(count))
+```
+11/11 transects had pisaster in 2020
+11/11 transects had pisaster in 2019
+
+### Alegria
+```{r}
+alg_swath <- swath %>% 
+  filter(site == "Alegria",
+         species %in% c("leptasterias spp", "pisaster ochraceus"),
+         year == "2019") %>% 
+  group_by(transect) %>% 
+  summarize(tot_sp=sum(count))
+```
+7/11 transects had pisaster in 2020
+5/11 transects had pisaster in 2019
+
+### Cabrillo III
+```{r}
+cnm_swath <- swath %>% 
+  filter(site == "Cabrillo III")
+```
+Bunch o' bat stars
+
+4 swaths **should** be enough, just from eyeballin' it.
