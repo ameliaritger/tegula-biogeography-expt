@@ -1,5 +1,3 @@
-# these are packages you will need, but probably already have.
-# Don't bother installing if you already have them
 library(tidyverse)
 library(ggplot2)
 library(ggmap)
@@ -33,5 +31,5 @@ ggplot() +
         axis.title=element_text(size=20),
         axis.text=element_text(size=15))
 
-ggsave("fig1.png", width=6, height=10)
+ggsave("figures/fig1.png", width=6, height=10)
 
