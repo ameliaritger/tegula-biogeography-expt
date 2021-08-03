@@ -58,11 +58,11 @@ quadrat_sum$species <- factor(quadrat_sum$species, levels=c("tegula funebralis",
 quadrat_sum$location <- factor(quadrat_sum$location, levels=c("Cabrillo NM", "Alegria", "Lompoc Landing", "Bodega Bay", "Fogarty Creek", "Sokol Point"))
 
 ggplot(data=quadrat_sum, aes(x=location, y=density_per_m2, fill=species)) +
-  geom_bar(position="dodge", stat="identity") +
+  geom_bar(position="dodge", stat="identity") + #grouped bars, not stacked
   xlab("Location") +
   ylab("Species density (per m2)") +
   theme_bw()
 
-ggsave("figures/summer-quads.png", height=10, width=25, units="cm")
+ggsave(here("figures", "summer-quadrats.png"), height=10, width=25, units="cm")
 ```
 
