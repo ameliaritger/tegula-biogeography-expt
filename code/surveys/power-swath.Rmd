@@ -18,7 +18,7 @@ library(vegan)
 # SWATH DATA
 ## Quick data tidy
 ```{r}
-swath <- read_csv(here("data","amelia_ritger_cbs_ltm_data_20210601-swath.csv")) %>% 
+swath <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_ltm_data_20210601-swath.csv")) %>% 
   clean_names() %>% 
     rename("species" = "final_classification",
          "site"="intertidal_sitename") %>%
@@ -43,7 +43,7 @@ swath_lol <- swath %>%
          year=="2014")
 
 #Confirm with MARINe summary data for swath counts
-marine <- read_csv(here("data","amelia_ritger_cbs_summary_2020_1005-swath.csv")) %>% 
+marine <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_summary_2020_1005-swath.csv")) %>% 
   clean_names() %>% 
   filter(intertidal_sitename=="Lompoc Landing",
          year=="2014")

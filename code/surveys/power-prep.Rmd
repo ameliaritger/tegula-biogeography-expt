@@ -18,7 +18,7 @@ library(vegan)
 # SWATH DATA
 ## Quick data tidy
 ```{r}
-swath <- read_csv(here("data","amelia_ritger_cbs_ltm_data_20210601-swath.csv")) %>% 
+swath <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_ltm_data_20210601-swath.csv")) %>% 
   clean_names() %>% 
     rename("species" = "final_classification",
          "site"="intertidal_sitename") %>%
@@ -81,7 +81,7 @@ ggplot(swath_three, aes(fill=species, y=tot_sp, x=site)) +
 # QUADRAT DATA
 ## Quick data tidy
 ```{r}
-quad <- read_csv(here("data","amelia_ritger_cbs_ltm_data_20210601-quad.csv")) %>% 
+quad <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_ltm_data_20210601-quad.csv")) %>% 
   clean_names() %>% 
     rename("species" = "final_classification",
          "site"="intertidal_sitename") %>%
@@ -101,7 +101,7 @@ quad_clean <- quad %>%
 
 ## check it with MARINe summarized data
 ```{r}
-marine <- read_csv(here("data", "amelia_ritger_cbs_summary_2020_1005-quad.csv")) %>% 
+marine <- read_csv(here("data", "surveys", "marine", "amelia_ritger_cbs_summary_2020_1005-quad.csv")) %>% 
   clean_names() %>% 
   filter(intertidal_sitename=="Alegria",
          year=="2001")
