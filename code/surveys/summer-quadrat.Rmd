@@ -1,0 +1,68 @@
+---
+title: "Quadrat analysis (summer surveys)"
+author: "Amelia Ritger"
+date: "8/3/2021"
+output: html_document
+---
+
+## Load packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(lubridate)
+```
+
+## Read in and tidy data
+```{r}
+quadrat <- read_csv(here("data", "surveys", "summer-quadrat.csv")) %>% 
+  clean_names() %>% 
+  mutate(date=mdy(date))%>% #apply lubridate to date column
+  mutate_at(vars("tegula_funebralis":"leptasterias"), ~replace_na(., 0)) #replace NAs with 0 for all species columns
+```
+
+## Start wrangling data
+```{r}
+quadrat_sub <- quadrat %>%
+  filter(date > "2021-6-20") %>% #only analyze summer surveys
+  mutate(whelks = nucella_ostrina_emarginata + nucella_canaliculata + nucella_sp + mexacanthina + acanthinucella,
+         stars = pisaster + leptasterias,
+         crabs = cancer_sp + pachygraspus) %>% #combine all predator groups
+  select(location, date, tide_zone, transect, sampled_length_m, tegula_funebralis, whelks:crabs) #only keep columns of interest
+```
+
+## Wrangle the data according to MARINe methods
+
+Need: total count, number of transects OR quadrats, est swath area searched (m2) OR total area sampled (m2), density (per m2)
+```{r}
+quadrat_sum <- quadrat_sub %>%
+  pivot_longer(cols=tegula_funebralis:crabs,
+               names_to = "species",
+               values_to = "count") %>%
+  group_by(location, species) %>%
+  summarize(total_species=sum(count), #get total counts across all tide zones
+            number_quadrats_sampled=n(), #get total number quadrats across all tide zones
+            total_area_sampled=number_quadrats_sampled/4, #divide by 4 because 0.5m2 for each quadrat
+            density_per_m2=total_species/total_area_sampled) %>%
+  mutate(species=replace(species, species=="tegula_funebralis", "tegula funebralis")) #rename tegula values
+```
+
+## Now plot it up
+```{r}
+#set species order for plotting
+quadrat_sum$species <- factor(quadrat_sum$species, levels=c("tegula funebralis", "whelks", "crabs", "stars"))
+
+#set site order for plotting
+quadrat_sum$location <- factor(quadrat_sum$location, levels=c("Cabrillo NM", "Alegria", "Lompoc Landing", "Bodega Bay", "Fogarty Creek", "Sokol Point"))
+
+ggplot(data=quadrat_sum, aes(x=location, y=density_per_m2, fill=species)) +
+  geom_bar(position="dodge", stat="identity") +
+  xlab("Location") +
+  ylab("Species density (per m2)") +
+  theme_bw()
+
+ggsave("figures/summer-quads.png", height=10, width=25, units="cm")
+```
+
