@@ -1,0 +1,47 @@
+---
+title: "June-July sensor data wrangling"
+author: "Amelia Ritger"
+date: "8/3/2021"
+output: html_document
+---
+
+# Load packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, messages = FALSE, error = FALSE)
+
+library(tidyverse)
+library(janitor)
+library(here)
+library(lubridate)
+library(scales)
+```
+
+## Read in the data
+```{r}
+jj <- read_csv(here("data","sensors", "sensor-data_all.csv")) %>% 
+  clean_names() %>%
+  mutate(date_time=mdy_hms(date_time), #aapply lubridate to date/time column
+         date=format(date_time, '%m/%d/%Y'), #create only date column
+         time=format(date_time, '%H:%M:%S')) %>% #create only time column
+ select(site, sensor_number, date_time, date, time, temp_c, p_h) %>%
+    mutate(site=replace(site, site=="LOL", "Lompoc Landing"),
+           site=replace(site, site=="ALG", "Alegria"),
+           site=replace(site, site=="BML", "Bodega Bay")) #rename locations
+```
+
+## Plot it up
+```{r}
+#set site order for plotting (legend)
+jj$site <- factor(jj$site, levels=c("Alegria", "Lompoc Landing", "Bodega Bay"))
+
+ggplot(jj, aes(x=date_time, y=p_h, group=site)) +
+  geom_line(aes(color=site), size=0.7) +
+  geom_point(aes(color=site), size=0.5) +
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date time") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=90))
+
+ggsave(here("figures", "june-july.png"), height=20, width=40, units="cm")
+```
