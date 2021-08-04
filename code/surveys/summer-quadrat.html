@@ -180,21 +180,6 @@ pre code {
   clean_names() %&gt;% 
   mutate(date=mdy(date))%&gt;% #apply lubridate to date column
   mutate_at(vars(&quot;tegula_funebralis&quot;:&quot;leptasterias&quot;), ~replace_na(., 0)) #replace NAs with 0 for all species columns</code></pre>
-<pre><code>## 
-## ── Column specification ────────────────────────────────────────────────────────
-## cols(
-##   .default = col_double(),
-##   Location = col_character(),
-##   Date = col_character(),
-##   `Tide zone` = col_character(),
-##   Surveyor = col_character(),
-##   `Transect length` = col_character(),
-##   `%` = col_number(),
-##   Side = col_character(),
-##   Comments = col_character(),
-##   `Other comments` = col_character()
-## )
-## ℹ Use `spec()` for the full column specifications.</code></pre>
 </div>
 <div id="start-wrangling-data" class="section level2">
 <h2>Start wrangling data</h2>
@@ -218,7 +203,6 @@ pre code {
             total_area_sampled=number_quadrats_sampled/4, #divide by 4 because 0.5m2 for each quadrat
             density_per_m2=total_species/total_area_sampled) %&gt;%
   mutate(species=replace(species, species==&quot;tegula_funebralis&quot;, &quot;tegula funebralis&quot;)) #rename tegula values</code></pre>
-<pre><code>## `summarise()` has grouped output by &#39;location&#39;. You can override using the `.groups` argument.</code></pre>
 </div>
 <div id="now-plot-it-up" class="section level2">
 <h2>Now plot it up</h2>
