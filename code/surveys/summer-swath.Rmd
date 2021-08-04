@@ -1,0 +1,86 @@
+---
+title: "Swath analysis (summer surveys)"
+author: "Amelia Ritger"
+date: "8/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(lubridate)
+```
+
+## Read in and tidy data
+```{r}
+swath <- read_csv(here("data", "surveys", "summer-swath.csv")) %>% 
+  clean_names() %>% 
+  mutate(date=mdy(date))%>% #apply lubridate to date column
+  mutate_at(vars("pachygraspus":"octopus"), ~replace_na(., 0)) #replace NAs with 0 for all species columns
+```
+
+## Start wrangling data
+```{r}
+swath_sub <- swath %>%
+  filter(date > "2021-6-20") %>% #only analyze summer surveys
+  mutate(other_stars = henricia + other_asteroids,
+         crabs = cancer_sp + pachygraspus + cancer_antennarius + cancer_productus + cancer_oregonensis, #combine all predator groups
+         pisaster_length = ifelse(first_pisaster_m==0, 0, total_length - first_pisaster_m)) %>% # get transect length for pisaster
+  select(location, date, transect, total_length, pisaster_length, pisaster, crabs, other_stars, octopus, kelletia) %>% #only keep columns of interest
+  mutate()
+```
+
+## Wrangle the data according to MARINe methods
+
+Need: total count, number of transects OR quadrats, est swath area searched (m2) OR total area sampled (m2), density (per m2)
+```{r}
+#do this without pisaster
+swath_sum_without <- swath_sub %>%
+  pivot_longer(cols=crabs:kelletia,
+               names_to = "species",
+               values_to = "count") %>%
+  group_by(location, species) %>%
+  summarize(total_species=sum(count), #get total counts across all tide zones
+            number_transects_sampled=n(), #get total number transects surveyed at site
+            total_area_sampled=2*sum(total_length), #multiply by 2 because 1 m on each side
+            density_per_m2=total_species/total_area_sampled)
+
+#do this with pisaster
+swath_sum_pisaster <- swath_sub %>%
+  select(location:pisaster) %>%
+  group_by(location) %>%
+  summarize(species="pisaster",
+            total_species=sum(pisaster), #get total counts across all tide zones
+            number_transects_sampled=n(), #get total number transects surveyed at site
+            total_area_sampled=2*sum(pisaster_length), #multiply by 2 because 1 m on each side
+            density_per_m2=ifelse(total_species==0, 0, total_species/total_area_sampled))
+  
+#merge the two df
+swath_sum <- full_join(swath_sum_without, swath_sum_pisaster) %>%
+    mutate(species=replace(species, species=="other_stars", "other stars"),
+           location=replace(location, location=="Bodega", "Bodega Bay")) #clean up values for plotting
+
+```
+
+## Now plot it up
+```{r}
+#set species order for plotting
+swath_sum$species <- factor(swath_sum$species, levels=c("crabs", "pisaster", "other stars", "kelletia", "octopus"))
+
+#set site order for plotting
+swath_sum$location <- factor(swath_sum$location, levels=c("Cabrillo NM", "Alegria", "Lompoc Landing", "Bodega Bay", "Fogarty Creek", "Sokol Point"))
+
+ggplot(data=swath_sum, aes(x=location, y=density_per_m2, fill=species)) +
+  geom_bar(position="dodge", stat="identity") + #grouped bars, not stacked
+  coord_flip() +
+  xlab("Location") +
+  ylab("Species density (per m2)") +
+  theme_bw() +
+  theme(legend.position = "none") +
+  facet_wrap(~species, scales="free_x")
+  
+ggsave(here("figures", "summer-swaths.png"), height=20, width=40, units="cm")
+```
