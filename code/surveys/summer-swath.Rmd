@@ -87,13 +87,3 @@ ggplot(data=swath_sum, aes(x=location, y=density_per_m2, fill=species)) +
   
 ggsave(here("figures", "summer-swaths.png"), height=20, width=40, units="cm")
 ```
-
-## WORK IN PROGRESS
-Plot relative frequencies of predator species for each site
-```{r}
-quad_clean <- quad %>% 
-  filter(species %in% c("acanthinucella spp","cancer antennarius","cancer spp", "kelletia kelletii", "leptasterias spp","nucella canaliculata","nucella emarginata; nucella ostrina","pachygrapsus crassipes","hemigrapsus nudus","pisaster ochraceus","tegula aureotincta","tegula brunnea","tegula eiseni","tegula funebralis","tegula gallina")) %>% 
-  group_by(site, year, species) %>% 
-  summarize(tot_sp=sum(count))
-```
-
