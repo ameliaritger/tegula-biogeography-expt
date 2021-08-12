@@ -111,7 +111,10 @@ all_group <- all_sum %>%
 all_group$species <- factor(all_group$species, levels=c("Tegula funebralis", "Whelks", "Crabs", "Small stars", "Large stars", "Octopus"))
 
 ggplot(all_group, aes(x=location, y=density_per_m2, fill=species)) +
-  geom_bar(position="dodge", stat="identity")
+  geom_bar(position="dodge", stat="identity") +
+  ylab(bquote('Species density ' (per ~m^2))) +
+  xlab("Location") +
+  theme_bw()
 
 ggsave(here("figures", "summer-all.png"), height=20, width=40, units="cm")
 ```
