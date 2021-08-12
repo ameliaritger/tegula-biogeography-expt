@@ -1,7 +1,7 @@
 ---
 title: "Summer survey - swath/quadrat combination"
 author: "Amelia Ritger"
-date: "8/3/2021"
+date: "8/11/2021"
 output: html_document
 ---
 
@@ -9,9 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-# RUN THIS AFTER RUNNING SEPARATE SWATH/QUADRAT FILES
+# RUN THIS AFTER RUNNING "summer-swath.Rmd", "summer-quadrat.Rmd"
 
-## WORK IN PROGRESS
 Compare densities of Pachygraspus counted from swaths vs quadrats for each site
 ```{r}
 quadrat_pachy <- quadrat_sum %>%
