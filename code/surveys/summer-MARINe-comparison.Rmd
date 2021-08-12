@@ -1,0 +1,43 @@
+---
+title: "Summer survey - comparison with MARINe data "
+author: "Amelia Ritger"
+date: "8/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# RUN THIS AFTER RUNNING "summer-all.Rmd"
+
+```{r}
+my_data <- all_group
+
+marine_quad_1 <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_summary_2020_1005-quad.csv")) %>% 
+  clean_names() %>% 
+    rename("species" = "species_lump",
+         "site"="intertidal_sitename") %>%
+  select("site","survey_rep","year","species","total_count","density_per_m2") %>%
+  filter(site %in% c("Cabrillo III", "Alegria", "Lompoc Landing", "Bodega", "Fogarty Creek", "Sokol Point; Chilean Memorial"),
+         species %in% c("Acanthinucella spp","Acanthina paucilirata", "Cancer antennarius","Cancer branneri", "Cancer jordani", "Cancer oregonensis", "Cancer productus", "Kelletia kelletii", "Leptasterias spp","Nucella canaliculata","Nucella emarginata; nucella ostrina","Pachygrapsus crassipes","Pisaster ochraceus","Tegula funebralis")) %>%
+  mutate(species=ifelse(str_detect(species, pattern="Cancer"), "Crabs",
+                            ifelse(str_detect(species, pattern="Pachy"), "Crabs",
+                                   ifelse(str_detect(species, pattern="canth"), "Whelks",
+                                          ifelse(str_detect(species, pattern="Lepta"), "Small stars", species))))) %>%
+  group_by(site, year, species) %>%
+  summarize(density_per_m2=sum(density_per_m2)) %>%
+  ungroup() %>%
+  group_by(site, species) %>%
+  summarize(mean_density_per_m2=mean(density_per_m2))
+
+#This doesn't include nucella though, so it's SUPER limited and probably not worth using...
+
+#Let's try a different dataset
+marine_quad_2 <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_ltm_data_20210601-quad.csv")) %>%
+  clean_names() %>% 
+  rename("species" = "final_classification",
+         "site"="intertidal_sitename")
+
+#Oh shit, I can't make a direct comparison at the moment. Gotta ask MARINe for a more comprehensive dataset!
+```
