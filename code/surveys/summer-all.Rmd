@@ -1,0 +1,128 @@
+---
+title: "Summer survey - swath/quadrat combination"
+author: "Amelia Ritger"
+date: "8/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# RUN THIS AFTER RUNNING SEPARATE SWATH/QUADRAT FILES
+
+## WORK IN PROGRESS
+Compare densities of Pachygraspus counted from swaths vs quadrats for each site
+```{r}
+quadrat_pachy <- quadrat_sum %>%
+  filter(species=="Small crabs") %>%
+  mutate(species=str_replace(species, "Small crabs", "quadrats"))
+
+swath_pachy <- swath_sum %>%
+  filter(species=="Small crabs") %>%
+  mutate(species=str_replace(species, "Small crabs", "swaths"))
+
+pachy_comp <- full_join(quadrat_pachy, swath_pachy) %>%
+  rename(type=species)
+
+#set site order for plotting
+pachy_comp$location <- factor(pachy_comp$location, levels=c("Cabrillo NM", "Alegria", "Lompoc Landing", "Bodega Bay", "Fogarty Creek", "Sokol Point"))
+
+ggplot(pachy_comp, aes(x=location, y=density_per_m2, fill=type)) +
+  geom_bar(position="dodge", stat="identity")
+
+ggsave(here("figures", "pachygraspus-comparison.png"), height=20, width=40, units="cm")
+```
+
+OK, so let's pretend that we didn't count Pachygraspus on the swaths...
+
+Combine swath and quadrat data into one df (but remove swath pachygraspus counts)
+```{r}
+quadrat_sum_no_pachy <- quadrat_sum %>%
+  filter(!species=="Small crabs") %>%
+  mutate(species=str_replace(species, "Whelks", "Small whelks")) %>% #separate kelletia from nucella/acanthinucella
+  rename(number_sampled=number_quadrats_sampled) #rename for joining dfs
+
+swath_sum_join <- swath_sum %>%
+  rename(number_sampled=number_transects_sampled) #rename for joining dfs
+
+#join the two df
+all <- full_join(swath_sum_join, quadrat_sum_no_pachy)
+
+#join "Pisaster" and "Other stars" into "Large stars" and get final summed df
+all_sum <- all %>%
+  mutate(species=str_replace(species, "Other stars", "Not Pisaster, not small stars"), #set up values for combining "other stars" with "pisaster"
+         species=ifelse(str_detect(species, pattern="Pisaster"), "Large stars", species)) %>%
+  group_by(location, species) %>%
+  summarize(density_per_m2=sum(density_per_m2)) #sum densities together
+
+#set species order for plotting
+#all_sum$species <- factor(all_sum$species, levels=c("Tegula funebralis", "Small whelks", "Large whelks", "Small crabs", "Large crabs", "Small stars", "Large stars", "Octopus"))
+                                            
+#set site order for plotting
+all_sum$location <- factor(all_sum$location, levels=c("Cabrillo NM", "Alegria", "Lompoc Landing", "Bodega Bay", "Fogarty Creek", "Sokol Point"))
+
+ggplot(all_sum, aes(x=location, y=density_per_m2, fill=species)) +
+  geom_bar(position="dodge", stat="identity")
+```
+
+Woof. Let's try a bit of combining
+
+Check out which groups can/should be combined
+```{r}
+#check crabs first
+crabs <- all_sum %>%
+  filter(species=="Small crabs" | species=="Large crabs")
+
+ggplot(crabs, aes(x=location, y=density_per_m2, fill=species)) +
+  geom_bar(position="dodge", stat="identity")
+
+#Uhh... not a lot of big crabs in general. Looks like I can combine large and small crabs?
+
+#whelks I'm going to guess yes, combine them, since Kelletia were only found at Cabrillo NM
+
+whelks <- all_sum %>%
+  filter(species=="Small whelks" | species=="Large whelks")
+
+ggplot(whelks, aes(x=location, y=density_per_m2)) +
+  geom_bar(position="dodge", stat="identity") 
+
+#yup. Now onto stars?
+
+stars <- all_sum %>%
+  filter(species=="Small stars" | species=="Large stars")
+
+ggplot(stars, aes(x=location, y=density_per_m2, fill=species)) +
+  geom_bar(position="dodge", stat="identity") 
+
+#small stars and large stars show interesting trends, so let's keep them separate
+```
+
+Combine 'em
+```{r}
+all_group <- all_sum %>%
+  mutate(species=ifelse(str_detect(species, pattern="crabs"), "Crabs", 
+                        ifelse(str_detect(species, pattern="whelks"), "Whelks", species))) %>%
+  group_by(location, species) %>%
+  summarize(density_per_m2=sum(density_per_m2)) %>% #sum densities together
+  filter(!species=="Octopus") #remove octopus because they're not doing much :(
+
+#set species order for plotting
+all_group$species <- factor(all_group$species, levels=c("Tegula funebralis", "Whelks", "Crabs", "Small stars", "Large stars", "Octopus"))
+
+ggplot(all_group, aes(x=location, y=density_per_m2, fill=species)) +
+  geom_bar(position="dodge", stat="identity")
+
+ggsave(here("figures", "summer-all.png"), height=20, width=40, units="cm")
+```
+
+Plot relative frequencies of predator species for each site
+```{r}
+ggplot(all_group, aes(x=location, y=density_per_m2, fill=species)) +
+  geom_bar(position="fill", stat="identity") + #facet_wrap(~year)
+  ylab("Species proportion") +
+  xlab("Location") +
+  theme_bw()
+
+ggsave(here("figures", "summer-all_proportion.png"), height=20, width=40, units="cm")
+```
