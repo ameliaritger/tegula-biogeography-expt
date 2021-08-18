@@ -11,33 +11,46 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 # RUN THIS AFTER RUNNING "summer-all.Rmd"
 
+MARINe quadrat data
 ```{r}
-my_data <- all_group
-
-marine_quad_1 <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_summary_2020_1005-quad.csv")) %>% 
+marine_quad <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_summary_data_20210817-quad.csv")) %>% 
   clean_names() %>% 
-    rename("species" = "species_lump",
-         "site"="intertidal_sitename") %>%
+    rename("site"="intertidal_sitename") %>%
   select("site","survey_rep","year","species","total_count","density_per_m2") %>%
-  filter(site %in% c("Cabrillo III", "Alegria", "Lompoc Landing", "Bodega", "Fogarty Creek", "Sokol Point; Chilean Memorial"),
-         species %in% c("Acanthinucella spp","Acanthina paucilirata", "Cancer antennarius","Cancer branneri", "Cancer jordani", "Cancer oregonensis", "Cancer productus", "Kelletia kelletii", "Leptasterias spp","Nucella canaliculata","Nucella emarginata; nucella ostrina","Pachygrapsus crassipes","Pisaster ochraceus","Tegula funebralis")) %>%
-  mutate(species=ifelse(str_detect(species, pattern="Cancer"), "Crabs",
+  filter(species %in% c("Acanthinucella spp","Cancer antennarius",  "Kelletia kelletii", "Leptasterias spp","Mexacanthina lugubris", "Nucella canaliculata","Nucella emarginata/ostrina","Pachygrapsus crassipes","Pisaster ochraceus","Tegula funebralis")) %>%
+  mutate(group_species=ifelse(str_detect(species, pattern="Cancer"), "Crabs",
                             ifelse(str_detect(species, pattern="Pachy"), "Crabs",
                                    ifelse(str_detect(species, pattern="canth"), "Whelks",
-                                          ifelse(str_detect(species, pattern="Lepta"), "Small stars", species))))) %>%
-  group_by(site, year, species) %>%
+                                           ifelse(str_detect(species, pattern="Kell"), "Whelks",
+                                                  ifelse(str_detect(species, pattern="ucel"), "Whelks",
+                                                         ifelse(str_detect(species, pattern="Lepta"), "Small stars",
+                                                                ifelse(str_detect(species, pattern="Pisaster"), "Large stars",species)))))))) %>%
+  group_by(site, year, group_species) %>%
   summarize(density_per_m2=sum(density_per_m2)) %>%
-  ungroup() %>%
-  group_by(site, species) %>%
-  summarize(mean_density_per_m2=mean(density_per_m2))
+  ungroup()
 
-#This doesn't include nucella though, so it's SUPER limited and probably not worth using...
+#Get the number of times a site was surveyed
+marine_quad_n <- marine_quad %>%
+  select(site, year) %>%
+  distinct() %>%
+  group_by(site) %>%
+  summarize(n=n())
 
-#Let's try a different dataset
-marine_quad_2 <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_ltm_data_20210601-quad.csv")) %>%
-  clean_names() %>% 
-  rename("species" = "final_classification",
-         "site"="intertidal_sitename")
+#Get the average population densities across all years
+marine_quad_avg <- marine_quad %>%
+  group_by(site, group_species) %>%
+  summarize(mean_density=mean(density_per_m2)) %>%
+  ungroup()
 
-#Oh shit, I can't make a direct comparison at the moment. Gotta ask MARINe for a more comprehensive dataset!
+marine_quad_merge <- full_join(marine_quad_avg, marine_quad_n) %>%
+  rename("Site"="site",
+         "Species"="group_species",
+         "Mean density per m2"="mean_density")
+
+sort(unique(marine_quad$species))
+sort(unique(marine_quad$site))
 ```
+
+Missing species (in my surveys, not in MARINe quadrat df)
+"Acanthina paucilirata","Cancer branneri", "Cancer jordani", "Cancer oregonensis", "Cancer productus"
+
