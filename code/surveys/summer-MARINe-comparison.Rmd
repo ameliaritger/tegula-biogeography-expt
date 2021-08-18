@@ -13,10 +13,12 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 MARINe quadrat data
 ```{r}
-marine_quad <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_summary_data_20210817-quad.csv")) %>% 
+marine_quad_raw <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_summary_data_20210817-quad.csv")) %>% 
   clean_names() %>% 
     rename("site"="intertidal_sitename") %>%
-  select("site","survey_rep","year","species","total_count","density_per_m2") %>%
+  select("site","survey_rep","year","species","total_count","density_per_m2")
+
+marine_quad <- marine_quad_raw %>%
   filter(species %in% c("Acanthinucella spp","Cancer antennarius",  "Kelletia kelletii", "Leptasterias spp","Mexacanthina lugubris", "Nucella canaliculata","Nucella emarginata/ostrina","Pachygrapsus crassipes","Pisaster ochraceus","Tegula funebralis")) %>%
   mutate(group_species=ifelse(str_detect(species, pattern="Cancer"), "Crabs",
                             ifelse(str_detect(species, pattern="Pachy"), "Crabs",
@@ -34,7 +36,8 @@ marine_quad_n <- marine_quad %>%
   select(site, year) %>%
   distinct() %>%
   group_by(site) %>%
-  summarize(n=n())
+  summarize(n=n()) %>%
+  ungroup()
 
 #Get the average population densities across all years
 marine_quad_avg <- marine_quad %>%
@@ -42,15 +45,57 @@ marine_quad_avg <- marine_quad %>%
   summarize(mean_density=mean(density_per_m2)) %>%
   ungroup()
 
-marine_quad_merge <- full_join(marine_quad_avg, marine_quad_n) %>%
-  rename("Site"="site",
-         "Species"="group_species",
-         "Mean density per m2"="mean_density")
+#Add the number of times a site was surveyed to average population densities across all years
+marine_quad_merge <- full_join(marine_quad_avg, marine_quad_n)
+  # rename("Site"="site",
+  #        "Species"="group_species",
+  #        "Mean density per m2"="mean_density")
 
 sort(unique(marine_quad$species))
 sort(unique(marine_quad$site))
 ```
 
-Missing species (in my surveys, not in MARINe quadrat df)
+MARINe swath data 
+```{r}
+marine_swath_raw <- read_csv(here("data","surveys", "marine", "amelia_ritger_cbs_summary_data_20210817-swath.csv")) %>% 
+  clean_names() %>%
+  rename("site"="intertidal_sitename") %>%
+  select("site","year","species","total_count","density_per_m2")
+
+marine_swath <- marine_swath_raw %>%
+  filter(species %in% c("Henricia spp", "Leptasterias spp", "Pisaster giganteus", "Pisaster ochraceus")) %>%
+  mutate(group_species=ifelse(str_detect(species, pattern="Lepta"), "Small stars", "Large stars")) %>%
+  group_by(site, year, group_species) %>%
+  summarize(density_per_m2=sum(density_per_m2)) %>%
+  ungroup()
+
+#Get the number of times a site was surveyed
+marine_swath_n <- marine_swath %>%
+  select(site, year) %>%
+  distinct() %>%
+  group_by(site) %>%
+  summarize(n=n()) %>%
+  ungroup()
+
+#Get the average population densities across all years
+marine_swath_avg <- marine_swath %>%
+  group_by(site, group_species) %>%
+  summarize(mean_density=mean(density_per_m2)) %>%
+  ungroup()
+
+#Add the number of times a site was surveyed to average population densities across all years
+marine_swath_merge <- full_join(marine_swath_avg, marine_swath_n)
+```
+
+Missing species (in my surveys, not in MARINe quadrat or swath df):
 "Acanthina paucilirata","Cancer branneri", "Cancer jordani", "Cancer oregonensis", "Cancer productus"
+
+Combine MARINe quadrat and swath data
+```{r}
+marine_merge_sum <- full_join(marine_swath_merge, marine_quad_merge) %>%
+  group_by(site, group_species) %>%
+  summarize(mean_density=mean(mean_density))
+
+marine_merge <- full_join(marine_merge_sum, marine_swath_n) #Looks like species were picked up on swaths on years where species weren't picked up on quadrats (and never vice versa), so merge with swath n column
+```
 
