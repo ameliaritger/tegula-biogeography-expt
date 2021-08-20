@@ -1,0 +1,48 @@
+---
+title: "June-July sensor data wrangling"
+author: "Amelia Ritger"
+date: "8/3/2021"
+output: html_document
+---
+
+# Load packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, messages = FALSE, error = FALSE)
+
+library(tidyverse)
+library(janitor)
+library(here)
+library(lubridate)
+library(scales)
+```
+
+## Read in the data
+```{r}
+alg <- read_csv(here("data","sensors", "sensor-data_all.csv")) %>% 
+  clean_names() %>%
+  mutate(date_time=mdy_hms(date_time), #aapply lubridate to date/time column
+         date=format(date_time, '%m/%d/%Y'), #create only date column
+         time=format(date_time, '%H:%M:%S')) %>% #create only time column
+ select(site, sensor_number, calibration_date, date_time, date, time, temp_c, p_h) %>%
+    mutate(site=replace(site, site=="LOL", "Lompoc Landing"),
+           site=replace(site, site=="ALG", "Alegria"),
+           site=replace(site, site=="BML", "Bodega Bay")) %>% #rename locations
+  filter(calibration_date=="6/11 and 7/12")
+```
+
+## Plot it up
+```{r}
+#set site order for plotting (legend)
+ggplot(alg, aes(x=date_time)) +
+  geom_line(aes(y=p_h), color="red") + 
+  geom_line(aes(y=temp_c), color="blue") + # Divide by 10 to get the same range than the temperature
+  scale_y_continuous(name = "pH", #first axis name
+    sec.axis = sec_axis(~.+3, name="Temp (C)")) + #second axis name and features
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date time") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=90))
+
+ggsave(here("figures", "june-july.png"), height=20, width=40, units="cm")
+```
