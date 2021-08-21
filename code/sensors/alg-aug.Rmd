@@ -44,6 +44,5 @@ ggplot(alg, aes(x=date_time)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "alg-aug.png
-            "), height=20, width=40, units="cm")
+ggsave(here("figures", "alg-aug.png"), height=20, width=40, units="cm")
 ```
