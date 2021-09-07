@@ -98,24 +98,27 @@ ggplot(bml2, aes(x=date_time, y=value, group=group)) +
 ```
 Let's come back to this...
 
-Add tide cycles!
+# Add tide cycles!
+Sites: 
+- Bodega%20Harbor%20entrance%2C%20California
+- Point%20Arguello%2C%20California
+- Gaviota%2C%20California
+
 ```{r}
-bml_tide <- read_html("http://tbone.biol.sc.edu/tide/tideshow.cgi?tplotdir=horiz;gx=640;gy=240;caltype=ndp;type=mrare;interval=00%3A15;glen=112;fontsize=%2B0;units=feet;year=2021;month=05;day=25;hour=00;min=01;tzone=local;d_year=;d_month=01;d_day=01;d_hour=00;d_min=00;ampm24=24;colortext=black;colordatum=white;colormsl=yellow;colortics=red;colorday=skyblue;colornight=deep-%3Cbr%20%2F%3Eskyblue;colorebb=seagreen;colorflood=blue;site=Gaviota%2C%20California") %>%
-  html_elements("pre") %>%
-  html_text2()
+bml_tide <- read_html("http://tbone.biol.sc.edu/tide/tideshow.cgi?tplotdir=horiz;gx=640;gy=240;caltype=ndp;type=mrare;interval=00%3A15;glen=112;fontsize=%2B0;units=feet;year=2021;month=05;day=25;hour=00;min=00;tzone=local;d_year=;d_month=01;d_day=01;d_hour=00;d_min=00;ampm24=24;colortext=black;colordatum=white;colormsl=yellow;colortics=red;colorday=skyblue;colornight=deep-%3Cbr%20%2F%3Eskyblue;colorebb=seagreen;colorflood=blue;site=Bodega%20Harbor%20entrance%2C%20California") %>%
+  html_elements("pre") %>% #select only the date, time, and tide values from the webpage
+  html_text2() %>% #convert list to data table
+  data.frame() %>% #convert table to data frame
+  mutate(date_tide = str_split(., pattern = "\n")) %>% #split into rows by each time point
+  unnest(date_tide) %>% #unnest into two columns 
+  mutate(date_tide=as.factor(date_tide)) %>% #make column values factors 
+  separate(date_tide, into = c("date", "space", "time", "time_zone", "tide"), sep="\\s") %>% #separate the values (separated by spaces) into their own columns
+  select(-"space", -".") %>% #remove the "space" (blank space) column and duplicated column created by unnest() 
+  unite("time", "time", "time_zone", sep="\ ",) %>% #join together time and time zone
+  unite("date_time", "date", "time", sep="\ ") %>% #join together date and time/time zone
+  drop_na() %>% #remove final row with NA (not sure why that's even there)
+  mutate(date_time=ymd_hm(date_time)) #apply lubridate to date/time column
 
-bml_tide_table <- data.frame(bml_tide) %>%
-  mutate(date_tide = str_split(bml_tide, pattern = "\n")) %>%
-  unnest(date_tide) %>%
-  select(date_tide) %>%
-  mutate(date_tide=as.factor(date_tide)) %>%
-  separate(date_tide, into = c("date", "space", "time", "time_zone", "tide"), sep="\\s") %>%
-  unite("time", "time", "time_zone", sep="\ ") %>%
-  select(-"space")
 
-%>%
-  separate_rows(date_tide, sep="\\s") %>%
-  separate(date_tide, into = c("date", "space", "time", "ds", "tide"), extra = 'merge')
-  
 ```
 
