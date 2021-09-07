@@ -44,7 +44,7 @@ ggplot(jj, aes(x=date_time, y=p_h, group=site)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "june-aug.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "june-aug.png"), height=20, width=40, units="cm")
 ```
 
 ###Plot temp up for good measure
@@ -58,7 +58,7 @@ ggplot(jj, aes(x=date_time, y=temp_c, group=site)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "june-aug_temp.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors","june-aug_temp.png"), height=20, width=40, units="cm")
 ```
 
 # Plot each site, temp and pH 
@@ -79,7 +79,7 @@ ggplot(bml, aes(x=date_time)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "bml?.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "bml?.png"), height=20, width=40, units="cm")
 
 ## Try it with pH and temp sorted as "groups"
 bml2 <- bml %>%
@@ -146,7 +146,7 @@ ggplot(bml_tide, aes(x=date_time, y=tide)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "bml_tide.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "bml_tide.png"), height=20, width=40, units="cm")
 ```
 
 
@@ -168,7 +168,7 @@ ggplot(bml3, aes(x=date_time, y=value, group=data)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "bml_pH_temp_tide.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "bml_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
 
