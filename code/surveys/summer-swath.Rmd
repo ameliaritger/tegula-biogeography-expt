@@ -80,7 +80,7 @@ ggplot(data=swath_sum, aes(x=location, y=density_per_m2, fill=species)) +
   geom_bar(position="dodge", stat="identity") + #grouped bars, not stacked
   coord_flip() +
   xlab("Location") +
-  ylab("Species density (per m2)") +
+  ylab(bquote('Species density ' (per ~m^2))) +
   theme_bw() +
   theme(legend.position = "none") +
   facet_wrap(~species, scales="free_x")

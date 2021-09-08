@@ -61,7 +61,7 @@ quadrat_sum$location <- factor(quadrat_sum$location, levels=c("Cabrillo NM", "Al
 ggplot(data=quadrat_sum, aes(x=location, y=density_per_m2, fill=species)) +
   geom_bar(position="dodge", stat="identity") + #grouped bars, not stacked
   xlab("Location") +
-  ylab("Species density (per m2)") +
+  ylab(bquote('Species density ' (per ~m^2))) +
   theme_bw()
 
 ggsave(here("figures", "surveys", "summer-quadrats.png"), height=10, width=25, units="cm")
