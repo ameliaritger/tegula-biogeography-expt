@@ -16,6 +16,8 @@ library(lubridate)
 library(scales)
 library(rvest) #to scrape tide data from the internet
 library(reshape) #to ultimately merge BML, LOL, and ALG
+library(gt) #create nice table for presentations
+library(webshot) #save gt() table
 ```
 
 ## Read in the data
@@ -544,8 +546,7 @@ ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
         axis.title.x=element_text(size=15),
         axis.text.y=element_text(size=12),
         axis.title.y=element_text(size=15),
-        legend.title=element_text(size=15),
-        legend.text=element_text(size=12))
+        legend.position = "none")
 
 ggsave(here("figures", "sensors", "ph_all.png"), height=20, width=40, units="cm")
 
@@ -609,5 +610,41 @@ ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
   scale_alpha_manual(values=c(0.5,0.5,1))
 
 ggsave(here("figures", "sensors", "ph_alg.png"), height=20, width=40, units="cm")
+```
+
+### Create a nice table
+
+```{r}
+# Calculate min, max, average pH values for each site
+alg_min <- (min(alg_desand$p_h))
+alg_max <- (max(alg_desand$p_h))
+alg_avg <- (median(alg_desand$p_h))
+
+lol_min <- (min(lol_detide_temp_ph$p_h))
+lol_max <- (max(lol_detide_temp_ph$p_h))
+lol_avg <- (median(lol_detide_temp_ph$p_h))
+
+bml_min <- (min(bml_detide_temp_ph$p_h))
+bml_max <- (max(bml_detide_temp_ph$p_h))
+bml_avg <- (median(bml_detide_temp_ph$p_h))
+
+ph_table <- tribble(
+  ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",
+  "Bodega Marine Lab", bml_min, bml_max, bml_avg,
+  "Lompoc Landing", lol_min, lol_max, lol_avg,
+  "Alegria", alg_min, alg_max, alg_avg) 
+
+ph_table %>%
+  gt() %>%
+  fmt_number(
+  columns = c("Min pH":"Median pH"),
+  rows = everything(),
+  decimals = 2) %>%
+  data_color(
+    columns = c("Site"),
+    colors = scales::col_factor( # <- bc it's a factor
+      palette = c("#D55E00","#0072B2","#009E73"),
+      domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
+  gtsave(here("figures", "sensors", "ph_table.png"))
 ```
 
