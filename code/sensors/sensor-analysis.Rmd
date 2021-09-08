@@ -15,6 +15,7 @@ library(here)
 library(lubridate)
 library(scales)
 library(rvest) #to scrape tide data from the internet
+library(reshape) #to ultimately merge BML, LOL, and ALG
 ```
 
 ## Read in the data
@@ -220,13 +221,16 @@ ggplot(bml_detide_temp_ph, aes(x=date_time)) +
   geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
-  annotate(geom="text", x=as.POSIXct("2021-05-31 00:10:00"), y=14, hjust=0, label="Temp (C)", color="#D55E00") +
-  annotate(geom="text", x=as.POSIXct("2021-08-16 00:10:00"), y=9, hjust=-0.1, label="pH", color="#009E73") +
-  annotate(geom="text", x=as.POSIXct("2021-05-31 00:10:00"), y=6, hjust=0, label="Tide", color="#0072B2") +
+  annotate(geom="text", x=as.POSIXct("2021-05-31 00:10:00"), y=14, hjust=0, label="Temp (C)", color="#D55E00", size=5) +
+  annotate(geom="text", x=as.POSIXct("2021-08-16 00:10:00"), y=9, hjust=-0.1, label="pH", color="#009E73", size=5) +
+  annotate(geom="text", x=as.POSIXct("2021-05-31 00:10:00"), y=6, hjust=0, label="Tide", color="#0072B2", size=5) +
   xlab("Date & time") +
   ylab("Value") +
   theme_bw() +
-  theme(axis.text.x=element_text(angle=90))
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15))
 
 ggsave(here("figures", "sensors", "bml_detide_tide-temp-pH.png"), height=20, width=40, units="cm")
 ```
@@ -384,13 +388,16 @@ ggplot(lol_detide_temp_ph, aes(x=date_time)) +
   geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
-  annotate(geom="text", x=as.POSIXct("2021-8-12 00:01:00"), y=19, hjust=0, label="Temp (C)", color="#D55E00") +
-  annotate(geom="text", x=as.POSIXct("2021-6-14 00:01:00"), y=9, hjust=-0.1, label="pH", color="#009E73") +
-  annotate(geom="text", x=as.POSIXct("2021-6-14 00:01:00"), y=6, hjust=0, label="Tide", color="#0072B2") +
+  annotate(geom="text", x=as.POSIXct("2021-8-12 00:01:00"), y=19, hjust=0, label="Temp (C)", color="#D55E00", size=5) +
+  annotate(geom="text", x=as.POSIXct("2021-6-14 00:01:00"), y=9, hjust=-0.1, label="pH", color="#009E73", size=5) +
+  annotate(geom="text", x=as.POSIXct("2021-6-14 00:01:00"), y=6, hjust=0, label="Tide", color="#0072B2", size=5) +
   xlab("Date & time") +
   ylab("Value") +
   theme_bw() +
-  theme(axis.text.x=element_text(angle=90))
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15))
 
 ggsave(here("figures", "sensors", "lol_detide_tide-temp.png"), height=20, width=40, units="cm")
 ```
@@ -458,7 +465,8 @@ ggsave(here("figures", "sensors", "alg_pH_temp_tide.png"), height=20, width=40, 
 ## Remove anomalous measurements (like where the sensor was likely inundated with sand!)
 ```{r}
 alg_desand <- alg_all %>%
-  filter(date_time > ymd_hms("2021-06-18 01:00:00")) #super weird, but pH looks like it stabilizes at 1AM post sand
+  filter(date_time > ymd_hms("2021-06-18 01:00:00")) %>% #super weird, but pH looks like it stabilizes at 1AM post sand
+  drop_na() #remove rows with only tide values
 
 ggplot(alg_desand, aes(x=date_time, y=p_h)) +
   geom_line(size=0.7) +
@@ -493,13 +501,113 @@ ggplot(alg_desand, aes(x=date_time)) +
   geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("4 days"), 
                     labels = date_format("%m/%d %H:%m")) +
-  annotate(geom="text", x=as.POSIXct("2021-6-18 00:01:00"), y=19, hjust=0, label="Temp (C)", color="#D55E00") +
-  annotate(geom="text", x=as.POSIXct("2021-6-18 00:01:00"), y=10, hjust=-0.1, label="pH", color="#009E73") +
-  annotate(geom="text", x=as.POSIXct("2021-6-18 00:01:00"), y=-1.5, hjust=0, label="Tide", color="#0072B2") +
+  annotate(geom="text", x=as.POSIXct("2021-6-18 00:01:00"), y=19, hjust=0, label="Temp (C)", color="#D55E00", size=5) +
+  annotate(geom="text", x=as.POSIXct("2021-6-18 00:01:00"), y=10, hjust=-0.1, label="pH", color="#009E73", size=5) +
+  annotate(geom="text", x=as.POSIXct("2021-6-18 00:01:00"), y=-1.5, hjust=0, label="Tide", color="#0072B2", size=5) +
   xlab("Date & time") +
   ylab("Value") +
   theme_bw() +
-  theme(axis.text.x=element_text(angle=90))
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15))
 
 ggsave(here("figures", "sensors", "alg_desand.png"), height=20, width=40, units="cm")
 ```
+
+
+## Now let's actually plot up a comparison of the pH values across sites
+```{r}
+#join all sites into one df (and remove diff columns)
+ph_all <- merge_recurse(list(alg_desand, lol_detide_temp_ph, bml_detide_temp_ph)) %>%
+  select(-diff, -diff2, -diff3)
+
+#set order for sites
+ph_all$site <- factor(ph_all$site, levels=c("Lompoc Landing","Alegria","Bodega Bay"))
+
+#set custom color for sites
+pal <- c(
+  "Alegria" = "#D55E00",
+  "Lompoc Landing" = "#009E73", 
+  "Bodega Bay" = "#0072B2"
+)
+
+ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
+  geom_line(aes(color=site), size=0.7, alpha=0.8) +
+  scale_color_manual(values = pal) + #color lines by custom site color palette
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date time") +
+  ylab("pH") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15),
+        legend.title=element_text(size=15),
+        legend.text=element_text(size=12))
+
+ggsave(here("figures", "sensors", "ph_all.png"), height=20, width=40, units="cm")
+
+# For presentations, highlight one line at a time per site
+#BML focal
+ph_all$site <- factor(ph_all$site, levels=c("Lompoc Landing","Alegria","Bodega Bay"))
+
+ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
+  geom_line(aes(color=site, alpha=site), size=0.7) +
+  scale_color_manual(values = pal) + #color lines by custom site color palette
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date time") +
+  ylab("pH") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15),
+        legend.position = "none") +
+  scale_alpha_manual(values=c(0.5,0.5,1))
+
+ggsave(here("figures", "sensors", "ph_bml.png"), height=20, width=40, units="cm")
+
+#LOL focal
+ph_all$site <- factor(ph_all$site, levels=c("Alegria","Bodega Bay", "Lompoc Landing"))
+
+ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
+  geom_line(aes(color=site, alpha=site), size=0.7) +
+  scale_color_manual(values = pal) + #color lines by custom site color palette
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date time") +
+  ylab("pH") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15),
+        legend.position = "none") +
+  scale_alpha_manual(values=c(0.5,0.5,1))
+
+ggsave(here("figures", "sensors", "ph_lol.png"), height=20, width=40, units="cm")
+
+#ALG focal
+ph_all$site <- factor(ph_all$site, levels=c("Lompoc Landing","Bodega Bay", "Alegria"))
+
+ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
+  geom_line(aes(color=site, alpha=site), size=0.7) +
+  scale_color_manual(values = pal) + #color lines by custom site color palette
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date time") +
+  ylab("pH") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15),
+        legend.position = "none") +
+  scale_alpha_manual(values=c(0.5,0.5,1))
+
+ggsave(here("figures", "sensors", "ph_alg.png"), height=20, width=40, units="cm")
+```
+
