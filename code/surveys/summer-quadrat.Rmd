@@ -64,6 +64,6 @@ ggplot(data=quadrat_sum, aes(x=location, y=density_per_m2, fill=species)) +
   ylab("Species density (per m2)") +
   theme_bw()
 
-ggsave(here("figures", "summer-quadrats.png"), height=10, width=25, units="cm")
+ggsave(here("figures", "surveys", "summer-quadrats.png"), height=10, width=25, units="cm")
 ```
 
