@@ -22,7 +22,7 @@ library(webshot) #save gt() table
 
 ## Read in the data
 ```{r}
-jj <- read_csv(here("data","sensors", "sensor-data_all.csv")) %>% 
+all <- read_csv(here("data","sensors", "sensor-data_all.csv")) %>% 
   clean_names() %>%
   mutate(date_time=mdy_hms(date_time), #aapply lubridate to date/time column
          date=format(date_time, '%m/%d/%Y'), #create only date column
@@ -36,9 +36,9 @@ jj <- read_csv(here("data","sensors", "sensor-data_all.csv")) %>%
 ## Plot up the pH
 ```{r}
 #set site order for plotting (legend)
-jj$site <- factor(jj$site, levels=c("Alegria", "Lompoc Landing", "Bodega Bay"))
+all$site <- factor(all$site, levels=c("Alegria", "Lompoc Landing", "Bodega Bay"))
 
-ggplot(jj, aes(x=date_time, y=p_h, group=site)) +
+ggplot(all, aes(x=date_time, y=p_h, group=site)) +
   geom_line(aes(color=site), size=0.7) +
   geom_point(aes(color=site), size=0.5) +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -47,12 +47,12 @@ ggplot(jj, aes(x=date_time, y=p_h, group=site)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors", "june-aug.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "june-sept.png"), height=20, width=40, units="cm")
 ```
 
 ### Plot temp up for good measure
 ```{r}
-ggplot(jj, aes(x=date_time, y=temp_c, group=site)) +
+ggplot(all, aes(x=date_time, y=temp_c, group=site)) +
   geom_line(aes(color=site), size=0.7) +
   geom_point(aes(color=site), size=0.5) +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -61,14 +61,14 @@ ggplot(jj, aes(x=date_time, y=temp_c, group=site)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors","june-aug_temp.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors","june-sept_temp.png"), height=20, width=40, units="cm")
 ```
 
 # Plot each site, temp and pH 
 
 ### BML
 ```{r}
-bml <- jj %>%
+bml <- all %>%
   filter(site=="Bodega Bay")
 
 ggplot(bml, aes(x=date_time)) +
@@ -275,7 +275,7 @@ ggsave(here("figures", "sensors", "lol_tide.png"), height=20, width=40, units="c
 ### Combine the tides with the pH/temp values for LOL, plot it up!
 ```{r}
 # filter all data for LOL
-lol <- jj %>%
+lol <- all %>%
   filter(site=="Lompoc Landing")
 
 lol_all <- full_join(lol, lol_tide) %>%
@@ -441,7 +441,7 @@ ggsave(here("figures", "sensors", "alg_tide.png"), height=20, width=40, units="c
 ### Combine the tides with the pH/temp values for ALG, plot it up!
 ```{r}
 # filter all data for ALG
-alg <- jj %>%
+alg <- all %>%
   filter(site=="Alegria")
 
 alg_all <- full_join(alg, alg_tide) %>%
