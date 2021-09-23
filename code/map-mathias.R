@@ -9,8 +9,8 @@ west_coast <- subset(states, region %in% c("california"))
 sites <- tribble(
   ~name, ~lat, ~long, ~color, ~shape,
   "Bodega Marine Reserve", 38.318757561054554, -123.07218556931106, "red", "0",
-  "LOL", 34.7074307110824, -120.60051345263794, "mediumblue", "0",
-  "ALG", 34.46907703880511, -120.27191157990546, "mediumblue", "5",
+  "Lompoc Landing", 34.7074307110824, -120.60051345263794, "mediumblue", "0",
+  "Alegria", 34.46907703880511, -120.27191157990546, "mediumblue", "5",
   "Coal Oil Point Reserve", 34.4081, -119.8780, "red", "5"
 )
 
@@ -26,10 +26,10 @@ ggplot() +
   ylab("Latitude") +
   geom_point(data=sites, aes(x=long, y=lat, color=color, size=4)) +
   geom_text(data=sites, aes(x=long, y=lat, label=name), size=6,
-            hjust=ifelse(sites$name=='ALG',1.25, 
+            hjust=ifelse(sites$name=='Alegria',1.25, 
                          ifelse(sites$name=='Coal Oil Point Reserve',-0.05, 
-                                ifelse(sites$name=='Bodega Marine Reserve',-0.05, 1.25))), 
-            vjust=ifelse(sites$name=='ALG',1.25,
+                                ifelse(sites$name=='Bodega Marine Reserve',-0.05, 1.1))), 
+            vjust=ifelse(sites$name=='Alegria',1.25,
                          ifelse(sites$name=='Coal Oil Point Reserve',-1, 
                                 ifelse(sites$name=='Bodega Marine Reserve',-0.1, -0.5)))) + 
   geom_text(aes(label="Strong upwelling", y=34.7, x=-126.2)) +
@@ -39,5 +39,5 @@ ggplot() +
         axis.title=element_text(size=20),
         axis.text=element_text(size=15))
 
-ggsave("figures/fig2.png", width=6, height=10)
+ggsave("figures/fig2.png", width=8, height=10)
 
