@@ -11,7 +11,7 @@ sites <- tribble(
   "Bodega Marine Reserve", 38.318757561054554, -123.07218556931106, "mediumblue", 0, 1,
   "Lompoc Landing", 34.7074307110824, -120.60051345263794, "mediumblue", 0, 1,
   "Alegria", 34.46907703880511, -120.27191157990546, "mediumblue", 5, 1,
-  "Coal Oil Point Reserve", 34.4081, -119.8780, "black", 5, 0
+  "Coal Oil Point Reserve", 34.45, -119.8780, "black", 5, 0
 )
 
 ggplot() + 
@@ -25,17 +25,17 @@ ggplot() +
   xlab("Longitude") +
   ylab("Latitude") +
   geom_point(data=sites, aes(x=long, y=lat, color=color, size=pointsize)) +
-  scale_size_continuous(range = c(2, 4)) +
+  scale_size_continuous(range = c(3, 4)) +
   scale_color_manual(values=c("black", "purple")) +
   geom_text(data=sites, aes(x=long, y=lat, label=name), size=6,
             hjust=ifelse(sites$name=='Alegria',1.25, 
                          ifelse(sites$name=='Coal Oil Point Reserve',-0.05, 
-                                ifelse(sites$name=='Bodega Marine Reserve',-0.05, 1.1))), 
+                                ifelse(sites$name=='Bodega Marine Reserve',-0.05, 1.05))), 
             vjust=ifelse(sites$name=='Alegria',1.25,
                          ifelse(sites$name=='Coal Oil Point Reserve',-1, 
-                                ifelse(sites$name=='Bodega Marine Reserve',-0.1, -0.5)))) + 
-  geom_text(aes(label="Strong upwelling", y=34.7, x=-126.2)) +
-  geom_text(aes(label="Weak upwelling", y=34.2, x=-126.2)) +
+                                ifelse(sites$name=='Bodega Marine Reserve',-0.1, -0.7)))) + 
+  geom_text(aes(label="Strong upwelling", y=34.7, x=-126.1), size=5) +
+  geom_text(aes(label="Weak upwelling", y=34.2, x=-126.2), size=5) +
   theme_minimal() +
   theme(legend.position="none",
         axis.title=element_text(size=20),
