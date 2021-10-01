@@ -7,11 +7,11 @@ library(mapdata)
 states <- map_data("state")
 west_coast <- subset(states, region %in% c("california"))
 sites <- tribble(
-  ~name, ~lat, ~long, ~color, ~shape,
-  "Bodega Marine Reserve", 38.318757561054554, -123.07218556931106, "red", "0",
-  "Lompoc Landing", 34.7074307110824, -120.60051345263794, "mediumblue", "0",
-  "Alegria", 34.46907703880511, -120.27191157990546, "mediumblue", "5",
-  "Coal Oil Point Reserve", 34.4081, -119.8780, "red", "5"
+  ~name, ~lat, ~long, ~color, ~shape, ~pointsize,
+  "Bodega Marine Reserve", 38.318757561054554, -123.07218556931106, "mediumblue", 0, 1,
+  "Lompoc Landing", 34.7074307110824, -120.60051345263794, "mediumblue", 0, 1,
+  "Alegria", 34.46907703880511, -120.27191157990546, "mediumblue", 5, 1,
+  "Coal Oil Point Reserve", 34.4081, -119.8780, "black", 5, 0
 )
 
 ggplot() + 
@@ -24,7 +24,9 @@ ggplot() +
   xlim(-127,-114) +
   xlab("Longitude") +
   ylab("Latitude") +
-  geom_point(data=sites, aes(x=long, y=lat, color=color, size=4)) +
+  geom_point(data=sites, aes(x=long, y=lat, color=color, size=pointsize)) +
+  scale_size_continuous(range = c(2, 4)) +
+  scale_color_manual(values=c("black", "purple")) +
   geom_text(data=sites, aes(x=long, y=lat, label=name), size=6,
             hjust=ifelse(sites$name=='Alegria',1.25, 
                          ifelse(sites$name=='Coal Oil Point Reserve',-0.05, 
