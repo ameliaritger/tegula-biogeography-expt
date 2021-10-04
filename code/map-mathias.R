@@ -26,7 +26,7 @@ ggplot() +
   ylab("Latitude") +
   geom_point(data=sites, aes(x=long, y=lat, color=color, size=pointsize)) +
   scale_size_continuous(range = c(3, 4)) +
-  scale_color_manual(values=c("black", "purple")) +
+  scale_color_manual(values=c("black", "darkred")) +
   geom_text(data=sites, aes(x=long, y=lat, label=name), size=6,
             hjust=ifelse(sites$name=='Alegria',1.25, 
                          ifelse(sites$name=='Coal Oil Point Reserve',-0.05, 
