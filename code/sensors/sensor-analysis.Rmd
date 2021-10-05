@@ -201,20 +201,42 @@ ggplot(bml_detide, aes(x=date_time)) +
   theme(axis.text.x=element_text(angle=90))
 ```
 
-### Let's filter more, now based on temperature measurements
+### Check the tide height filtering for BML
+```{r}
+bml_superfilter <- bml_all %>%
+  filter(date_time > ymd_hms("2021-07-19 23:00:00"),
+         date_time < ymd_hms("2021-07-26 23:00:00"))  #7-30 to 8-06 is also interesting
+
+#Looking at the mid July dates, looks like I might need to filter out tides below -0.2? But then if I look at other dates, it's not as bad. -0.4 might actually be a good decision.
+
+y1 <- bml_detide_temp$p_h
+y2 <- bml_detide_temp$temp_c
+y3 <- bml_detide_temp$tide
+x <- bml_detide_temp$date_time
+
+highchart() %>% 
+  hc_add_series(data = y3, dashStyle="solid") %>% 
+  hc_add_series(data = y2, yAxis = 1) %>% 
+  hc_yAxis_multiples(
+     list(lineWidth = 3, lineColor="#009E73", title=list(text="Tide cycle")),
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="Temperature"))) %>%
+    hc_xAxis(title = "Date", categories = x, breaks=10) %>%
+  hc_colors(c("#009E73","#0072B2"))
+```
+
+
+### Let's filter more, now based on anomalous temperature measurements (spikes in July)
 ```{r}
 bml_detide_temp <- bml_detide %>%
-  arrange(date_time) %>% #make sure observations are in order by date/time
-  mutate(diff = temp_c - lag(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
-  filter(diff>-1.0) %>% #remove observations with large temp differences
-  mutate(diff2 = temp_c - lead(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
-  filter(diff2<1,
-         diff2>-1)
+  filter(!(date_time >= ymd_hms("2021-07-10 06:00:00") & date_time <= ymd_hms("2021-07-10 07:30:00")),
+         !(date_time >= ymd_hms("2021-07-21 06:15:00") & date_time <= ymd_hms("2021-07-21 07:15:00")),
+         !(date_time >= ymd_hms("2021-07-22 06:15:00") & date_time <= ymd_hms("2021-07-22 08:00:00")),
+         !(date_time >= ymd_hms("2021-07-23 07:15:00") & date_time <= ymd_hms("2021-07-23 08:30:00")))
 
 ggplot(bml_detide_temp, aes(x=date_time)) +
-  geom_line(aes(y=p_h), color="red") + 
-  geom_line(aes(y=temp_c), color="blue") + # Divide by 10 to get the same range than the temperature
-  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+  geom_line(aes(y=temp_c), color="red") + 
+  geom_line(aes(y=tide), color="blue") + # Divide by 10 to get the same range than the temperature
+  scale_x_datetime(breaks = scales::date_breaks("1 day"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
   theme_bw() +
@@ -441,6 +463,42 @@ htmlwidgets::saveWidget(widget = plot, file = here("figures", "sensors", "LOL_hi
 webshot::webshot(url = here("figures", "sensors", "LOL_highchart.html"), file = here("figures", "sensors", "LOL_highchart.png"), delay=3)
 ```
 
+Well that was a bit of a waste of time
+
+### Let's move on to continuing to process the data for "out of water"
+```{r}
+lol_superfilter <- lol_all %>%
+  filter(date_time > ymd_hms("2021-07-29 23:00:00"),
+         date_time < ymd_hms("2021-08-03 23:00:00"))
+
+y1 <- lol_superfilter$p_h
+y2 <- lol_superfilter$temp_c
+y3 <- lol_superfilter$tide
+x <- lol_superfilter$date_time
+
+highchart() %>% 
+  hc_add_series(data = y3, dashStyle="solid") %>% 
+  hc_add_series(data = y2, yAxis = 1) %>% 
+  #hc_add_series(data = y3, yAxis = 2) %>%
+  hc_yAxis_multiples(
+     list(lineWidth = 3, lineColor='#D55E00', title=list(text="pH")),
+     #list(lineWidth = 3, lineColor="#009E73", title=list(text="Temp")),
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="Tide cycle"))) %>%
+    hc_xAxis(title = "Date", categories = x, breaks=10) %>%
+  hc_colors(c("#D55E00",
+              "#009E73", 
+              "#0072B2"))
+```
+
+Nevermind it wasn't a waste of time! Highcharts are super useful! Looks like the pool is *definitely* disconnected from the ocean at a tide lower than a +3.0...maybe a +3.02 (but possibly even +3.2 or +3.4)
+
+### Create df for LOL with values above tides of +3.00
+```{r}
+lol_detided <- lol_detide_temp_ph %>%
+  filter(tide>3.0)
+```
+
+
 ## ALG 
 
 ### Scrape tide data from http://tbone.biol.sc.edu/tide/
@@ -527,14 +585,38 @@ ggplot(alg_desand, aes(x=date_time)) +
   xlab("Date time") +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
+
+alg_highchart <- alg_desand %>%
+  filter(date_time > ymd_hms("2021-07-23 01:00:00") & date_time < ymd_hms("2021-07-26 01:00:00"))
+
+y1 <- alg_highchart$p_h
+y2 <- alg_highchart$temp_c
+y3 <- alg_highchart$tide
+x <- alg_highchart$date_time
+
+highchart() %>% 
+  hc_add_series(data = y1, dashStyle="solid") %>% 
+  hc_add_series(data = y3, yAxis = 1) %>% 
+  #hc_add_series(data = y3, yAxis = 2) %>%
+  hc_yAxis_multiples(
+     list(lineWidth = 3, lineColor='#D55E00', title=list(text="pH")),
+     #list(lineWidth = 3, lineColor="#009E73", title=list(text="Temp")),
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="Tide cycle"))) %>%
+    hc_xAxis(title = "Date", categories = x, breaks=10) %>%
+  hc_colors(c("#D55E00",
+              "#009E73", 
+              "#0072B2"))
 ```
 
-Actually, these points look fine (and filtering is easy since the sensor is always connected to the ocean)
+These points look fine (and filtering should be easy since the sensor is always connected to the ocean) - but the high chart is suggesting a pattern around 0.00 tide (so let's try removing everything below 0.00... actually, let's try 0.6 since some of those pH values are quite low and consistently dropping at low tide it seems)
 
-### So, let's plot it I suppose!
+### Detide ALG data and plot
 
 ```{r}
-ggplot(alg_desand, aes(x=date_time)) +
+alg_detide <- alg_desand %>%
+  filter(tide>0.6)
+
+ggplot(alg_detide, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
   geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
@@ -551,15 +633,15 @@ ggplot(alg_desand, aes(x=date_time)) +
         axis.text.y=element_text(size=12),
         axis.title.y=element_text(size=15))
 
-ggsave(here("figures", "sensors", "alg_desand.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "alg_detide.png"), height=20, width=40, units="cm")
 ```
 
 
 ## Now let's actually plot up a comparison of the pH values across sites
 ```{r}
 #join all sites into one df (and remove diff columns)
-ph_all <- merge_recurse(list(alg_desand, lol_detide_temp_ph, bml_detide_temp_ph)) %>%
-  select(-diff, -diff2, -diff3)
+ph_all <- merge_recurse(list(alg_detide, lol_detided, bml_detide_temp_ph)) %>%
+  select(-diff3)
 
 #set order for sites
 ph_all$site <- factor(ph_all$site, levels=c("Lompoc Landing","Alegria","Bodega Bay"))
