@@ -416,6 +416,31 @@ ggplot(lol_detide_temp_ph, aes(x=date_time)) +
 ggsave(here("figures", "sensors", "lol_detide_tide-temp.png"), height=20, width=40, units="cm")
 ```
 
+### Plot up these data using a format similar to Li's for the LTER data - welcome, highchart!
+```{r}
+library(highcharter)
+library(webshot)
+
+y1 <- lol_detide_temp_ph$p_h
+y2 <- lol_detide_temp_ph$temp_c
+y3 <- lol_detide_temp_ph$tide
+x <- lol_detide_temp_ph$date_time
+
+plot <- highchart() %>% 
+  hc_add_series(data = y1, dashStyle="solid") %>% 
+  hc_add_series(data = y2, yAxis = 1) %>% 
+  hc_add_series(data = y3, yAxis = 2) %>%
+  hc_yAxis_multiples(
+     list(lineWidth = 3, lineColor='#D55E00', title=list(text="pH")),
+     list(lineWidth = 3, lineColor="#009E73", title=list(text="Temperature")),
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="Tide cycle"))) %>%
+    hc_xAxis(title = "Date", categories = x, breaks=10) %>%
+  hc_colors(c("#D55E00","#009E73", "#0072B2"))
+
+htmlwidgets::saveWidget(widget = plot, file = here("figures", "sensors", "LOL_highchart.html"))
+webshot::webshot(url = here("figures", "sensors", "LOL_highchart.html"), file = here("figures", "sensors", "LOL_highchart.png"), delay=3)
+```
+
 ## ALG 
 
 ### Scrape tide data from http://tbone.biol.sc.edu/tide/
