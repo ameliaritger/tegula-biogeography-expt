@@ -759,26 +759,55 @@ ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
 ggsave(here("figures", "sensors", "ph_alg.png"), height=20, width=40, units="cm")
 ```
 
+Now, for some "Chan et al 2017" style analyses
+
+## Look at the frequency of pH values below 7.8 
+```{r}
+ph_7.8 <- ph_all %>%
+  mutate(threshold = ifelse(p_h<7.8, "below", "above")) %>%
+  group_by(site, threshold) %>%
+  summarize(tot_observations = n())
+
+#Get total number of observations
+lol_n <- 3606+72
+bml_n <- 1028+6192
+alg_n <- 7552
+
+#Get frequency of pH values below 7.8
+lol_7.8 <- 72/lol_n
+bml_7.8 <- 1028/bml_n
+alg_7.8 <- 0/alg_n
+```
+
 # Create a nice table
 ```{r}
 # Calculate min, max, average pH values for each site
 alg_min <- (min(alg_no_noise$p_h))
 alg_max <- (max(alg_no_noise$p_h))
-alg_avg <- (median(alg_no_noise$p_h))
+alg_median <- (median(alg_no_noise$p_h))
+alg_mean <- (mean(alg_no_noise$p_h))
+alg_sd <- (sd(alg_no_noise$p_h))
+alg_cv <- (alg_sd/alg_mean)*100 #coefficient of variation
 
 lol_min <- (min(lol_detided$p_h))
 lol_max <- (max(lol_detided$p_h))
-lol_avg <- (median(lol_detided$p_h))
+lol_median <- (median(lol_detided$p_h))
+lol_mean <- (mean(lol_detided$p_h))
+lol_sd <- (sd(lol_detided$p_h))
+lol_cv <- (lol_sd/lol_mean)*100 #coefficient of variation
 
 bml_min <- (min(bml_detide_temp$p_h))
 bml_max <- (max(bml_detide_temp$p_h))
-bml_avg <- (median(bml_detide_temp$p_h))
+bml_median <- (median(bml_detide_temp$p_h))
+bml_mean <- (mean(bml_detide_temp$p_h))
+bml_sd <- (sd(bml_detide_temp$p_h))
+bml_cv <- (bml_sd/bml_mean)*100 #coefficient of variation
 
 ph_table <- tribble(
-  ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",
-  "Bodega Marine Lab", bml_min, bml_max, bml_avg,
-  "Lompoc Landing", lol_min, lol_max, lol_avg,
-  "Alegria", alg_min, alg_max, alg_avg) 
+  ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",  ~"pH CV", 
+  "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv,
+  "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv,
+  "Alegria", alg_min, alg_max, alg_median, alg_cv) 
 
 ph_table %>%
   gt() %>%
