@@ -911,3 +911,5 @@ return(fig)
 figure(lol_cycle,"Lompoc Landing")
 ```
 
+Next steps - assess the greatest pH and temperature range in a 24 hour, 1 week period and monthly averages
+
