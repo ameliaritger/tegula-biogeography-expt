@@ -839,7 +839,8 @@ Removed anomalous time points (noise or major jumps, especially in wrong directi
 - 8 from LOL
 
 
-### Plot up tide cycle within LOL to show extent of pH drops within pool
+## Zoom in on LOL as an example of pH variation within tidepool
+### Create df (remove anomalous points)
 ```{r}
 lol_cycle <- lol_all %>%
     drop_na() %>% #remove times with tides but without pH values
@@ -851,7 +852,62 @@ lol_cycle <- lol_all %>%
          !(date_time == ymd_hms("2021-09-15 09:15:00")),
          !(date_time == ymd_hms("2021-08-20 00:15:00"))) %>%
   mutate(cycle=ifelse(tide>=3.232, "high", "low"))
+```
 
+### Plot up all data from LOL to show extent of pH and temperature drops within pool
+```{r}
+figure <- function(df_input,name) {
+  
+m <- list(
+  l = 10,
+  r = 10,
+  b = 30,
+  t = 30,
+  pad =4
+)
 
+fig <- plot_ly(width = 2000)
+
+fig <- fig %>% 
+  add_trace(data = df_input, y=~tide, x = ~date_time, name = "Tide height", yaxis = "y1", mode = "lines", type = "scatter", line=list(color="blue")) 
+
+y2 <- list(
+  tickfont = list(color = "red"),
+  titlefont = list(color = "red"),
+  overlaying = "y",
+  side = "left",
+  position=0.21,
+  title = "Temperature (\u00B0C)")     
+
+fig <- fig %>% 
+  add_trace(data =df_input, y=~temp_c, x = ~date_time, name = "Temperature (\u00B0C)", yaxis = "y2", mode = "lines", type = "scatter", line=list(color="red"))
+
+y3 <- list(
+  tickfont = list(color = "green"),
+  titlefont = list(color = "green"),
+  overlaying = "y",
+  side = "left",
+  position=0.24,
+  title = "pH")
+
+fig <- fig %>% 
+  add_trace(data =df_input, y=~p_h, x = ~date_time, name = "pH", yaxis = "y3", mode = "lines", type = "scatter", line=list(color="green"))
+
+fig <- fig %>% 
+  layout(
+    title = name, yaxis2 = y2, yaxis3 = y3,
+    xaxis = list(title = 'Date', domain = c(0.3, 0.7)),
+    yaxis = list(title = "Tide height",
+              tickfont = list(color = "blue"),
+              titlefont = list(color = "blue")),
+  showlegend = FALSE,
+  margin = m
+)
+
+return(fig)
+
+}
+
+figure(lol_cycle,"Lompoc Landing")
 ```
 
