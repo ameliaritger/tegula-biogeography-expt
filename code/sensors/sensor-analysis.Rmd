@@ -20,6 +20,7 @@ library(gt) #create nice table for presentations
 library(webshot) #save gt() table
 library(highcharter) #create highcart to interact with data
 library(webshot) #save highcharts to .png files
+library(plotly) #create plots with multiple y axes
 ```
 
 ## Read in the data
@@ -836,3 +837,21 @@ Removed anomalous time points (noise or major jumps, especially in wrong directi
 - 20 from BML
 - All data collected before 06/18/2021 at ALG, plus 46 extra points
 - 8 from LOL
+
+
+### Plot up tide cycle within LOL to show extent of pH drops within pool
+```{r}
+lol_cycle <- lol_all %>%
+    drop_na() %>% #remove times with tides but without pH values
+  filter(!(date_time >= ymd_hms("2021-07-31 13:30:00") & date_time <= ymd_hms("2021-07-31 14:00:00")), #remove anomalous points (major jumps in pH)
+         !(date_time >= ymd_hms("2021-08-01 13:45:00") & date_time <= ymd_hms("2021-08-01 15:00:00")),
+         !(date_time >= ymd_hms("2021-06-26 16:45:00") & date_time <= ymd_hms("2021-06-26 18:00:00")),
+         !(date_time == ymd_hms("2021-07-13 08:00:00")),
+         !(date_time == ymd_hms("2021-08-19 03:30:00")),
+         !(date_time == ymd_hms("2021-09-15 09:15:00")),
+         !(date_time == ymd_hms("2021-08-20 00:15:00"))) %>%
+  mutate(cycle=ifelse(tide>=3.232, "high", "low"))
+
+
+```
+
