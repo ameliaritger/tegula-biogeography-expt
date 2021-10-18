@@ -169,7 +169,8 @@ ggsave(here("figures", "sensors", "bml_tide.png"), height=20, width=40, units="c
 ### Combine the tides with the pH/temp values for BML, plot it up!
 ```{r}
 bml_all <- full_join(bml, bml_tide) %>%
-  drop_na(c(tide, p_h)) #whoops, started off collecting data every 10 minutes and then switched to 15 minutes (so account for that by removing pH and tide values that don't overlap)
+  drop_na(c(tide, p_h)) %>% #whoops, started off collecting data every 10 minutes and then switched to 15 minutes (so account for that by removing pH and tide values that don't overlap)
+  distinct(date_time, .keep_all = TRUE) #remove duplicated data (not sure where those came from)
 
 bml3 <- bml_all %>%
   pivot_longer(cols=temp_c:tide,
@@ -324,32 +325,66 @@ lol_temp <- read_csv(here("data","sensors", "hobo_lol.csv")) %>%
 ```{r}
 # filter all data for LOL
 lol <- all %>%
-  filter(site=="Lompoc Landing")
+  filter(site=="Lompoc Landing") %>%
+  distinct(date_time, .keep_all = TRUE) #remove duplicated data (not sure where those came from)
 
 #join HOBO data with Durafet data
 lol_all_1 <- full_join(lol, lol_temp) %>%
-  drop_na(c(temp_c, p_h)) #remove hobo measurements taken outside of Durafet measurements
+  drop_na(c(temp_c, p_h)) %>% #remove hobo measurements taken outside of Durafet measurements
+  rename(temp_durafet_c=temp_c) 
 
 #Check difference between Durafet and HOBO temperature measurements
 lol_temp_diff <- lol_all_1 %>%
-  mutate(diff=temp_c-temp_hobo_c)
+  mutate(diff=temp_durafet_c-temp_hobo_c)
 
-ggplot(lol_temp_diff, aes(x=date_time, y=diff)) +
-  geom_line() +
-  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
-                    labels = date_format("%m/%d %H:%m")) +
-  xlab("Date time") +
-  theme_bw() +
-  theme(axis.text.x=element_text(angle=90))
+#Plot it up to check for anomalies
+y1 <- lol_temp_diff$temp_durafet_c
+y2 <- lol_temp_diff$temp_hobo_c
+y3 <- lol_temp_diff$diff
+x <- lol_temp_diff$date_time
+
+highchart() %>% 
+  hc_add_series(data = y1, dashStyle="solid") %>% 
+  hc_add_series(data = y2, yAxis = 1) %>% 
+  hc_add_series(data = y3, yAxis = 2) %>%
+  hc_yAxis_multiples(
+     list(lineWidth = 3, lineColor='#D55E00', title=list(text="durafet")),
+     list(lineWidth = 3, lineColor="#009E73", title=list(text="hobo")),
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="diff"))) %>%
+    hc_xAxis(title = "Date", categories = x, breaks=10) %>%
+  hc_colors(c("#D55E00","#009E73", "#0072B2"))
 
 #Join pH, temp data with tide data
 lol_all <- full_join(lol_all_1, lol_tide) %>%
   drop_na(c(tide, p_h)) %>% #remove unnecessary tide values
-  select(-temp_c) %>%
-  rename(temp_c=temp_hobo_c)
+  rename(temp_c=temp_hobo_c) 
 
+#Check if anomalous points in durafet vs hobo are due to tide cycle?
+lol_check <- lol_all %>%
+  mutate(diff=temp_durafet_c-temp_c) %>%
+  filter(tide<3.232) #this value was extracted thanks to code later on
+  #filter((date_time > ymd_hms("2021-10-01 01:00:00") & date_time <= ymd_hms("2021-10-22 24:00:00")))
+
+#create a highchart to assess
+y1 <- lol_check$temp_durafet_c
+y2 <- lol_check$temp_c
+y3 <- lol_check$diff
+x <- lol_check$date_time
+
+highchart() %>% 
+  hc_add_series(data = y1, dashStyle="solid") %>% 
+  hc_add_series(data = y3, yAxis = 1) %>% 
+  hc_add_series(data = y3, yAxis = 2) %>%
+  hc_yAxis_multiples(
+     list(lineWidth = 3, lineColor='#D55E00', title=list(text="durafet")),
+     list(lineWidth = 3, lineColor="#009E73", title=list(text="hobo")),
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="diff"))) %>%
+    hc_xAxis(title = "Date", categories = x, breaks=10) %>%
+  hc_colors(c("#D55E00","#009E73", "#0072B2"))
+
+# Anomalous points aside, plot it "all" up
 lol_plot <- lol_all %>%
-  pivot_longer(cols=p_h:tide,
+  pivot_longer(cols=temp_durafet_c:tide,
                names_to = "data",
                values_to = "value")
   
@@ -446,10 +481,8 @@ ggplot(lol_detide_temp_ph, aes(x=date_time)) +
   xlab("Date time") +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
-```
 
-### And plot it all up
-```{r}
+#And plot it up 
 ggplot(lol_detide_temp_ph, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
   geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
@@ -494,23 +527,65 @@ webshot::webshot(url = here("figures", "sensors", "LOL_highchart.html"), file = 
 
 Well that was a bit of a waste of time
 
+### Use wave data to check tide vs temperature stuff
+```{r}
+lol_wave <- read_csv(here("data","sensors", "wave-july2021.csv")) %>% 
+  clean_names() %>%
+  filter(wvht<99.00) %>%
+  mutate(mn=mn+5) %>%
+  unite("date", "year", "month", "day", sep="/") %>%
+  unite("time", "hr", "mn", sep=":") %>%
+  unite("date_time", "date", "time", sep=" ") %>%
+  mutate(date_time=ymd_hm(date_time)) #apply lubridate to date and time
+
+#join this with the july sensor df
+lol_july <- lol_all %>%
+  filter(date_time < ymd_hms("2021-08-01 00:00:00"),
+         date_time > ymd_hms("2021-07-01 00:00:00"))
+
+lol_wave_join <- full_join(lol_july, lol_wave) %>%
+  fill(wvht, .direction = "updown") %>% #fill in empty wave measurements with previous values before
+  distinct(date_time, .keep_all = TRUE) %>% #remove duplicated data (not sure where those came from)
+    filter(date_time < ymd_hms("2021-07-10 00:00:00"))
+
+y1 <- lol_wave_join$temp_c
+y2 <- lol_wave_join$wvht
+y3 <- lol_wave_join$tide
+x <- lol_wave_join$date_time
+
+highchart() %>% 
+  hc_add_series(data = y1, dashStyle="solid") %>% 
+  hc_add_series(data = y2, yAxis = 1) %>% 
+  hc_add_series(data = y3, yAxis = 1) %>%
+  hc_yAxis_multiples(
+     list(lineWidth = 3, lineColor='#D55E00', title=list(text="Temp")),
+     list(lineWidth = 3, lineColor="#009E73", title=list(text="Wave Height")),
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="Tide cycle"))) %>%
+    hc_xAxis(title = "Date", categories = x, breaks=10) %>%
+  hc_colors(c("#D55E00",
+              "#009E73",
+              "#0072B2"))
+```
+
 ### Let's move on to continuing to process the data for "out of water"
 ```{r}
 lol_superfilter <- lol_all %>%
-  filter(tide>3.232) %>%
-  filter(date_time > ymd_hms("2021-10-03 23:00:00"))
-         #date_time < ymd_hms("2021-09-20 23:00:00"))
+  #filter(tide>2.3) %>%
+  filter(date_time > ymd_hms("2021-07-25 01:00:00"),
+         date_time < ymd_hms("2021-08-01 23:00:00"))
 
-#3.29 is also a solid candidate also for tide filtering
+#3.232 looks good, 3.29 is also a solid candidate for tide filtering
 
-y1 <- lol_superfilter$p_h
+#2.3, 2.68, 
+
+y1 <- lol_superfilter$temp_c
 y2 <- lol_superfilter$temp_c
 y3 <- lol_superfilter$tide
 x <- lol_superfilter$date_time
 
 highchart() %>% 
-  hc_add_series(data = y1, dashStyle="solid") %>% 
-  hc_add_series(data = y2, yAxis = 1) %>% 
+  hc_add_series(data = y2, dashStyle="solid") %>% 
+  #hc_add_series(data = y2, yAxis = 1) %>% 
   hc_add_series(data = y3, yAxis = 1) %>%
   hc_yAxis_multiples(
      list(lineWidth = 3, lineColor='#D55E00', title=list(text="pH")),
@@ -530,6 +605,7 @@ lol_detided <- lol_detide_temp_ph %>%
   filter(tide>3.232) %>%
   filter(!(date_time >= ymd_hms("2021-07-31 13:30:00") & date_time <= ymd_hms("2021-07-31 14:00:00")),
          (date_time != ymd_hms("2021-09-15 09:15:00")),
+         !(date_time >= ymd_hms("2021-09-16 01:30:00") & date_time <= ymd_hms("2021-09-16 02:45:00")), #anomalous points here identified by comparing durafet and hobo temp logger values
          !(date_time >= ymd_hms("2021-08-01 13:45:00") & date_time < ymd_hms("2021-08-01 15:00:00"))) %>%
   drop_na() #remove times with tides but without pH values
 ```
