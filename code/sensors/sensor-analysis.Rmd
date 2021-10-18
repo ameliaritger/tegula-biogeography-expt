@@ -529,6 +529,7 @@ Well that was a bit of a waste of time
 
 ### Use wave data to check tide vs temperature stuff
 ```{r}
+#look at July NOAA NDBC data from Santa Maria buoy 
 lol_wave <- read_csv(here("data","sensors", "wave-july2021.csv")) %>% 
   clean_names() %>%
   filter(wvht<99.00) %>%
@@ -546,7 +547,8 @@ lol_july <- lol_all %>%
 lol_wave_join <- full_join(lol_july, lol_wave) %>%
   fill(wvht, .direction = "updown") %>% #fill in empty wave measurements with previous values before
   distinct(date_time, .keep_all = TRUE) %>% #remove duplicated data (not sure where those came from)
-    filter(date_time < ymd_hms("2021-07-10 00:00:00"))
+  filter(date_time > ymd_hms("2021-07-20 00:00:00"),
+         date_time < ymd_hms("2021-07-25 00:00:00"))
 
 y1 <- lol_wave_join$temp_c
 y2 <- lol_wave_join$wvht
@@ -565,18 +567,41 @@ highchart() %>%
   hc_colors(c("#D55E00",
               "#009E73",
               "#0072B2"))
+
+#List of tide height candidates (at these heights, temperature started dropping again):
+#2.321 
+#2.128 
+#2.120
+#1.987 
+#2.277
+#2.587
+#2.529
+#2.291
+#2.315
+#2.163
+#2.54
+#2.72
+#2.47
+#2.57
+#2.43
+#2.56
+#2.46
+#2.68
+#2.68
 ```
+The wave data isn't a magic bullet, but it does look like I might be overprocessing the data if I make the tide height as high as 3.0. Based on the July data (especially keeping in mind temperature changes will be most apparent in the middle of the day when the sun is out in full force), I'm going to remove any data below a tide height of 2.0
+
 
 ### Let's move on to continuing to process the data for "out of water"
 ```{r}
 lol_superfilter <- lol_all %>%
   #filter(tide>2.3) %>%
-  filter(date_time > ymd_hms("2021-07-25 01:00:00"),
-         date_time < ymd_hms("2021-08-01 23:00:00"))
+  filter(date_time > ymd_hms("2021-07-01 01:00:00"),
+         date_time < ymd_hms("2021-07-10 23:00:00"))
 
 #3.232 looks good, 3.29 is also a solid candidate for tide filtering
 
-#2.3, 2.68, 
+#2.3, 2.68 are also good candidates - I want to make sure I'm not over-filtering
 
 y1 <- lol_superfilter$temp_c
 y2 <- lol_superfilter$temp_c
@@ -597,7 +622,7 @@ highchart() %>%
               "#0072B2"))
 ```
 
-Nevermind it wasn't a waste of time! Highcharts are super useful! Looks like the pool is *definitely* disconnected from the ocean at a tide lower than a +3.0...maybe a +3.02 (but possibly even +3.2 or +3.4)
+Nevermind it wasn't a waste of time! Highcharts are super useful! Looks like the pool is *definitely* disconnected from the ocean at a tide lower than a +3.0...maybe a +3.02 (but possibly even +3.2 or +3.4)... but to be safe, let's stick with +2.0, I don't want to overfilter the data.
 
 ### Create df for LOL with values above tides of +3.232, and remove (or smooth?) anomalous time periods
 ```{r}
@@ -880,17 +905,19 @@ Now, for some "Chan et al 2017" style analyses
 ph_7.8 <- ph_all %>%
   mutate(threshold = ifelse(p_h<7.8, "below", "above")) %>%
   group_by(site, threshold) %>%
-  summarize(tot_observations = n())
+  summarize(tot_observations = n()) %>%
+  ungroup() %>%
+  add_row(site="Alegria", threshold="below", tot_observations=0) #add this row because Alegria has 0 observations below 7.8 (for now...)
 
-#Get total number of observations
-lol_n <- 3606+72
-bml_n <- 1028+6192
-alg_n <- 7552
+#Get total number of observations - use double square brackets because it's a tibble
+lol_n <- ph_7.8[[1,3]] + ph_7.8[[2,3]] 
+bml_n <- ph_7.8[[3,3]] + ph_7.8[[4,3]]
+alg_n <- ph_7.8[[5,3]] + ph_7.8[[6,3]]
 
 #Get frequency of pH values below 7.8
-lol_7.8 <- 72/lol_n
-bml_7.8 <- 1028/bml_n
-alg_7.8 <- 0/alg_n
+lol_7.8 <- ph_7.8[[2,3]]/lol_n
+bml_7.8 <- ph_7.8[[4,3]]/bml_n
+alg_7.8 <- ph_7.8[[6,3]]/alg_n
 ```
 
 # Create a nice table
@@ -918,7 +945,7 @@ bml_sd <- (sd(bml_detide_temp$p_h))
 bml_cv <- (bml_sd/bml_mean)*100 #coefficient of variation
 
 ph_table <- tribble(
-  ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",  ~"pH CV", 
+  ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",  ~"CV", 
   "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv,
   "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv,
   "Alegria", alg_min, alg_max, alg_median, alg_cv) 
@@ -943,14 +970,13 @@ At BML, sampling interval started at every 10 minutes and then switched to 15 mi
 
 Filtering for tide heights based on temp/pH patterns
 - All points at ALG were removed at tide heights below 0.9
-- All points at LOL were removed at tide heights below 3.232
+- All points at LOL were removed at tide heights below 2.0 (3.232 was also a good option, but I don't want to remove more values than need be... ask about this) 
 - All points at BML were removed at tide heights below -0.5
 
-Removed anomalous time points (noise or major jumps, especially in wrong direction)
+Removed additional anomalous time points (noise or major jumps, especially in wrong direction)
 - 20 from BML
 - All data collected before 06/18/2021 at ALG, plus 46 extra points
-- 8 from LOL
-
+- 9 from LOL
 
 ## Zoom in on LOL as an example of pH variation within tidepool
 ### Create df (remove anomalous points)
@@ -967,7 +993,7 @@ lol_cycle <- lol_all %>%
   mutate(cycle=ifelse(tide>=3.232, "high", "low"))
 ```
 
-### Plot up all data from LOL to show extent of pH and temperature drops within pool
+### Plot up all data from LOL to show extent of pH and temperature drops within pool - code from Li (thank you)
 ```{r}
 figure <- function(df_input,name) {
   
@@ -976,43 +1002,40 @@ m <- list(
   r = 10,
   b = 30,
   t = 30,
-  pad =4
+  pad = 4
 )
 
 fig <- plot_ly(width = 2000)
-
-fig <- fig %>% 
-  add_trace(data = df_input, y=~tide, x = ~date_time, name = "Tide height", yaxis = "y1", mode = "lines", type = "scatter", line=list(color="blue")) 
+ 
+ fig <- fig %>% 
+   add_trace(data = df_input, y=~p_h, x = ~date_time, name = "pH", yaxis = "y1", mode = "lines", type = "scatter", line=list(color="green")) 
 
 y2 <- list(
   tickfont = list(color = "red"),
   titlefont = list(color = "red"),
   overlaying = "y",
   side = "left",
-  position=0.21,
-  title = "Temperature (\u00B0C)")     
+  anchor="free",
+  position=0.02,
+  title = "Temperature (\u00B0C)")
 
 fig <- fig %>% 
   add_trace(data =df_input, y=~temp_c, x = ~date_time, name = "Temperature (\u00B0C)", yaxis = "y2", mode = "lines", type = "scatter", line=list(color="red"))
 
-y3 <- list(
-  tickfont = list(color = "green"),
-  titlefont = list(color = "green"),
-  overlaying = "y",
-  side = "left",
-  position=0.24,
-  title = "pH")
-
-fig <- fig %>% 
-  add_trace(data =df_input, y=~p_h, x = ~date_time, name = "pH", yaxis = "y3", mode = "lines", type = "scatter", line=list(color="green"))
-
 fig <- fig %>% 
   layout(
-    title = name, yaxis2 = y2, yaxis3 = y3,
-    xaxis = list(title = 'Date', domain = c(0.3, 0.7)),
-    yaxis = list(title = "Tide height",
-              tickfont = list(color = "blue"),
-              titlefont = list(color = "blue")),
+    title = name, yaxis2 = y2, #yaxis3 = y3,
+    xaxis = list(title = 'Date',
+                 domain = c(0.06, 1),
+                 tick0 = "2021-06-14 08:00:00",
+                 dtick = 7*86400000.0, 
+                 tickformat="%d-%b"),
+    yaxis = list(title = "pH",
+              tickfont = list(color = "green"),
+              titlefont = list(color = "green"),
+              side="left",
+              anchor="free",
+              position=0.05),
   showlegend = FALSE,
   margin = m
 )
@@ -1021,9 +1044,93 @@ return(fig)
 
 }
 
-figure(lol_cycle,"Lompoc Landing")
+#save it
+
+
+lol_cycle_fig <- figure(lol_cycle,"Lompoc Landing")
+
+orca(lol_cycle_fig, file="lol-cycle-full.png") #save plotly image
+filesstrings::move_files("lol-cycle-full.png", here("figures", "sensors"), overwrite=FALSE) #move the image to the "Figures" folder
+
 ```
 
-Next steps - assess the greatest pH and temperature range in a 24 hour, 1 week period and monthly averages
+### Try this again with code from plotly directly (https://plotly.com/r/multiple-axes/)
+```{r}
+fig <- plot_ly(width=2200)
 
-CHECK line 343 to compare Hobo with Durafet temp readings, and look at the anomalies (and then also re-filter pH data based on this new temp data)
+#set margin values
+m <- list(
+  l = -100, #left
+  r = 0, #right
+  b = 30, #bottom 
+  t = 30, #top
+  pad = 4 #amount of padding between plot area and axis lines
+)
+  
+fig <- fig %>% add_trace(data = lol_cycle, y=~temp_c, x = ~date_time, name = "yaxis1 data", mode = "lines", type = "scatter")
+
+y2 <- list(
+  tickfont = list(color = "#ff7f0e"),
+  titlefont = list(color = "#ff7f0e"),
+  overlaying = "y",
+  side = "left",
+  anchor="free",
+  position=0.21,
+  title = "yaxis2 title")
+
+fig <- fig %>% add_trace(data =lol_cycle, y=~p_h, x = ~date_time, name = "yaxis2 data", yaxis = "y2", mode = "lines", type = "scatter")
+
+# y3 <- list(
+#   tickfont = list(color = "#d62728"),
+#   titlefont = list(color = "#d62728"),
+#   overlaying = "y",
+#   side = "left",
+#   anchor="free",
+#   position=0.13,
+#   title = "yaxis3 title")
+
+#fig <- fig %>% add_trace(data =lol_cycle, y=~p_h, x = ~date_time, name = "yaxis3 data", yaxis = "y3", mode = "lines", type = "scatter")
+
+# y4 <- list(
+#   tickfont = list(color = "#9467bd"),
+#   titlefont = list(color = "#9467bd"),
+#   overlaying = "y",
+#   side = "right",
+#   anchor="free",
+#   position=0.85,
+#   title = "yaxis4 title")
+
+# fig <- fig %>% add_trace(x = ~5:7, y = ~10000*(4:6), name = "yaxis4 data", yaxis = "y4", mode = "lines+markers", type = "scatter")
+
+fig <- fig %>% layout(
+  title = "multiple y-axes example", yaxis2 = y2, yaxis3 = y3, #yaxis4 = y4,
+  xaxis = list(title = '', domain = c(0.3, 0.7)),
+  yaxis = list(title="yaxis title",
+               side = "left",
+               anchor="free",
+               position=0.29,
+               tickfont = list(color = "#1f77b4"),
+               titlefont = list(color = "#1f77b4")
+               )) %>%
+  layout(plot_bgcolor='#e5ecf6',
+          xaxis = list(
+            zerolinecolor = '#ffff',
+            zerolinewidth = 2,
+            gridcolor = 'ffff'),
+          yaxis = list(
+            zerolinecolor = '#ffff',
+            zerolinewidth = 2,
+            gridcolor = 'ffff'),
+           showlegend = FALSE,
+         margin= m
+          )
+fig
+```
+
+
+Next steps:
+1. assess the greatest pH and temperature range in a 24 hour, 1 week period and monthly averages for LOL
+
+2. Re-filter all pH data based on HOBO temp data (especially, make annotations next to every single point/range that was filtered out, for future QC)
+
+3. Talk to someone about overfiltering vs underfiltering LOL data - look at code chunk 595 (3.232 tide) vs 530 (2.0 tide)
