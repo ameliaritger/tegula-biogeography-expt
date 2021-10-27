@@ -1004,21 +1004,26 @@ ggplot(all, aes(x=date_time, y=value, group=group)) +
   #geom_point(aes(color=group), size=0.5) +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
-  facet_grid(group ~ ., 
+  facet_grid(group ~ ., #facet wrap to create one panel for pH and one for temp
              scales = "free_y",
              switch="both",
-             labeller = as_labeller(c(temp_c = "Temperature (C)", p_h = "pH"))) +
+             labeller = as_labeller(c(temp_c = "Temperature (C)", p_h = "pH"))) + #customize strip labels
   xlab("Date and time") +
-  ylab(NULL) +
+  ylab(NULL) + #remove "Value" from Y axis label
   theme_bw() +
   theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=22),
         axis.title.x=element_text(size=30),
         axis.text.y=element_text(size=22),
         legend.text=element_text(size=22),
-        legend.title = element_text(size=25),
-        strip.background = element_blank(),
+        legend.title = element_blank(),
+        #element_text(size=25),
+        legend.position = c(0.92,0.95), #customize legend position on plot
+        #legend.key.size = unit(4,"line"),
+        #legend.key.height = unit(1,"cm"),
+        strip.background = element_blank(), #remove strip background from facet_grid
         strip.text.y = element_text(size = 30),
-        strip.placement = "outside")
+        strip.placement = "outside") + #place the strip outside of the plot
+  guides(colour = guide_legend(override.aes = list(size=5, alpha = 1)))
 
 ggsave(here("figures", "sensors", "temp_all_facet.png"), height=50, width=60, units="cm")
 ```
