@@ -1193,3 +1193,5 @@ Next steps:
 2. Re-filter all pH data based on HOBO temp data (especially, make annotations next to every single point/range that was filtered out, for future QC)
 
 3. Talk to someone about overfiltering vs underfiltering LOL data - look at code chunk 595 (3.232 tide) vs 530 (2.0 tide)
+
+4. Do high pass/low pass filtering on the data to make visualization easier
