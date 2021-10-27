@@ -7,7 +7,10 @@ output: html_document
 
 # Load packages
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, messages = FALSE, error = FALSE)
+knitr::opts_chunk$set(echo = TRUE, 
+                      messages = FALSE, 
+                      error = FALSE,
+                      warning = FALSE)
 
 library(tidyverse)
 library(janitor)
@@ -21,6 +24,7 @@ library(webshot) #save gt() table
 library(highcharter) #create highcart to interact with data
 library(webshot) #save highcharts to .png files
 library(plotly) #create plots with multiple y axes
+library(filesstrings) #move plotly figure to proper folder location
 ```
 
 ## Read in the data
@@ -166,6 +170,22 @@ ggplot(bml_tide, aes(x=date_time, y=tide)) +
 ggsave(here("figures", "sensors", "bml_tide.png"), height=20, width=40, units="cm")
 ```
 
+### Extract temp values from HOBO logger, clean up for overlap with BML readings
+```{r}
+bml_temp <- read_csv(here("data","sensors", "hobo_bml.csv")) %>% 
+  filter(row_number()!=1) %>% # remove the first row
+  clean_names() %>%
+  rename(timestamp=x2,
+         temp_hobo_f=x3) %>%
+  mutate(date_time=ymd_hms(timestamp), #aapply lubridate to date/time column
+         date=format(date_time, '%m/%d/%Y'), #create only date column
+         time=format(date_time, '%H:%M:%S'), #create only time column
+         temp_hobo_c=((as.numeric(temp_hobo_f)-32)*(5/9))) %>% #convert F to C from HOBO temp data
+  select(temp_hobo_c,date_time) %>% #select the only columns that really matter
+  filter(date_time <= ymd_hms("2021-10-08 19:00:00"),
+         date_time > ymd_hms("2021-06-10 06:15:00")) #remove dates where HOBO was out of field (and first observation when HOBO was deployed, temp is WAY high)
+```
+  
 ### Combine the tides with the pH/temp values for BML, plot it up!
 ```{r}
 bml_all <- full_join(bml, bml_tide) %>%
@@ -1050,82 +1070,9 @@ return(fig)
 lol_cycle_fig <- figure(lol_cycle,"Lompoc Landing")
 
 orca(lol_cycle_fig, file="lol-cycle-full.png") #save plotly image
-filesstrings::move_files("lol-cycle-full.png", here("figures", "sensors"), overwrite=FALSE) #move the image to the "Figures" folder
-
+filesstrings::move_files("lol-cycle-full.png", here("figures", "sensors"), overwrite=TRUE) #move the image to the "Figures" folder
 ```
-
-### Try this again with code from plotly directly (https://plotly.com/r/multiple-axes/)
-```{r}
-fig <- plot_ly(width=2200)
-
-#set margin values
-m <- list(
-  l = -100, #left
-  r = 0, #right
-  b = 30, #bottom 
-  t = 30, #top
-  pad = 4 #amount of padding between plot area and axis lines
-)
-  
-fig <- fig %>% add_trace(data = lol_cycle, y=~temp_c, x = ~date_time, name = "yaxis1 data", mode = "lines", type = "scatter")
-
-y2 <- list(
-  tickfont = list(color = "#ff7f0e"),
-  titlefont = list(color = "#ff7f0e"),
-  overlaying = "y",
-  side = "left",
-  anchor="free",
-  position=0.21,
-  title = "yaxis2 title")
-
-fig <- fig %>% add_trace(data =lol_cycle, y=~p_h, x = ~date_time, name = "yaxis2 data", yaxis = "y2", mode = "lines", type = "scatter")
-
-# y3 <- list(
-#   tickfont = list(color = "#d62728"),
-#   titlefont = list(color = "#d62728"),
-#   overlaying = "y",
-#   side = "left",
-#   anchor="free",
-#   position=0.13,
-#   title = "yaxis3 title")
-
-#fig <- fig %>% add_trace(data =lol_cycle, y=~p_h, x = ~date_time, name = "yaxis3 data", yaxis = "y3", mode = "lines", type = "scatter")
-
-# y4 <- list(
-#   tickfont = list(color = "#9467bd"),
-#   titlefont = list(color = "#9467bd"),
-#   overlaying = "y",
-#   side = "right",
-#   anchor="free",
-#   position=0.85,
-#   title = "yaxis4 title")
-
-# fig <- fig %>% add_trace(x = ~5:7, y = ~10000*(4:6), name = "yaxis4 data", yaxis = "y4", mode = "lines+markers", type = "scatter")
-
-fig <- fig %>% layout(
-  title = "multiple y-axes example", yaxis2 = y2, yaxis3 = y3, #yaxis4 = y4,
-  xaxis = list(title = '', domain = c(0.3, 0.7)),
-  yaxis = list(title="yaxis title",
-               side = "left",
-               anchor="free",
-               position=0.29,
-               tickfont = list(color = "#1f77b4"),
-               titlefont = list(color = "#1f77b4")
-               )) %>%
-  layout(plot_bgcolor='#e5ecf6',
-          xaxis = list(
-            zerolinecolor = '#ffff',
-            zerolinewidth = 2,
-            gridcolor = 'ffff'),
-          yaxis = list(
-            zerolinecolor = '#ffff',
-            zerolinewidth = 2,
-            gridcolor = 'ffff'),
-           showlegend = FALSE,
-         margin= m
-          )
-fig
-```
+Alternatively, check out https://plotly.com/r/multiple-axes/
 
 
 Next steps:
