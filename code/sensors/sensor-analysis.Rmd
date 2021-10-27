@@ -977,7 +977,7 @@ temp_plot <- ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
 
 ```{r}
 #first, save it
-ggsave(here("figures", "sensors", "temp_ph.pdf"), arrangeGrob(ph_plot, temp_plot), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "temp_ph.pdf"), arrangeGrob(ph_plot, temp_plot), height=20, width=40, units="cm")
 
 #doesn't look great, so let's try facet_wrap style
 
@@ -1092,6 +1092,47 @@ ph_table %>%
       palette = c("#D55E00","#0072B2","#009E73"),
       domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
   gtsave(here("figures", "sensors", "ph_table.png"))
+
+# Calculate min, max, average temp values for each site
+alg_min <- (min(alg_no_noise$temp_c))
+alg_max <- (max(alg_no_noise$temp_c))
+alg_median <- (median(alg_no_noise$temp_c))
+alg_mean <- (mean(alg_no_noise$temp_c))
+alg_sd <- (sd(alg_no_noise$temp_c))
+alg_cv <- (alg_sd/alg_mean)*100 #coefficient of variation
+
+lol_min <- (min(lol_detided$temp_c))
+lol_max <- (max(lol_detided$temp_c))
+lol_median <- (median(lol_detided$temp_c))
+lol_mean <- (mean(lol_detided$temp_c))
+lol_sd <- (sd(lol_detided$temp_c))
+lol_cv <- (lol_sd/lol_mean)*100 #coefficient of variation
+
+bml_min <- (min(bml_detide_temp$temp_c))
+bml_max <- (max(bml_detide_temp$temp_c))
+bml_median <- (median(bml_detide_temp$temp_c))
+bml_mean <- (mean(bml_detide_temp$temp_c))
+bml_sd <- (sd(bml_detide_temp$temp_c))
+bml_cv <- (bml_sd/bml_mean)*100 #coefficient of variation
+
+temp_table <- tribble(
+  ~"Site", ~"Min temp", ~"Max temp", ~"Median temp",  ~"CV", 
+  "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv,
+  "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv,
+  "Alegria", alg_min, alg_max, alg_median, alg_cv) 
+
+temp_table %>%
+  gt() %>%
+  fmt_number(
+  columns = c("Min temp":"Median temp"),
+  rows = everything(),
+  decimals = 2) %>%
+  data_color(
+    columns = c("Site"),
+    colors = scales::col_factor( # <- bc it's a factor
+      palette = c("#D55E00","#0072B2","#009E73"),
+      domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
+  gtsave(here("figures", "sensors", "temp_table.png"))
 ```
 
 # Summary (what I did)
