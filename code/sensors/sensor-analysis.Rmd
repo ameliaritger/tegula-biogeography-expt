@@ -842,21 +842,24 @@ pal <- c(
   "Bodega Bay" = "#0072B2"
 )
 
-ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
+ph_plot <- ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
   geom_line(aes(color=site), size=0.7, alpha=0.8) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
-  xlab("Date time") +
+  #xlab("Date and time") +
   ylab("pH") +
   theme_bw() +
-  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
-        axis.title.x=element_text(size=15),
+  theme(axis.text.x=element_blank(), 
+        #element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_blank(),
+        #element_text(size=15),
         axis.text.y=element_text(size=12),
+        #axis.ticks.x=element_blank(),
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "sensors", "ph_all.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_all.png"), height=20, width=40, units="cm")
 
 # For presentations, highlight one line at a time per site
 #BML focal
@@ -928,15 +931,15 @@ Keep in mind, I don't have HOBO data from Alegria still unfortunately
 ```{r}
 #add site identity before joining
 bml_temp_join <- bml_detide_temp %>%
-  select(date_time, temp_c) %>%
+  select(date_time, temp_c, p_h) %>%
   mutate(site = "Bodega Bay")
 
 lol_temp_join <- lol_detided %>%
-  select(date_time, temp_c) %>%
+  select(date_time, temp_c, p_h) %>%
   mutate(site = "Lompoc Landing")
 
 alg_join <- alg_no_noise %>%
-  select(date_time, temp_c) %>%
+  select(date_time, temp_c, p_h) %>%
   #rename(temp_hobo_c=temp_c) %>%
   mutate(site = "Alegria")
 
@@ -953,7 +956,7 @@ pal <- c(
   "Bodega Bay" = "#0072B2"
 )
 
-ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
+temp_plot <- ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
   geom_line(aes(color=site), size=0.7, alpha=0.8) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -967,9 +970,58 @@ ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "sensors", "temp_all.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "temp_all.png"), height=20, width=40, units="cm")
 ```
 
+## Let's try to combine pH and temperature plots into one grid
+
+```{r}
+#first, save it
+ggsave(here("figures", "sensors", "temp_ph.pdf"), arrangeGrob(ph_plot, temp_plot), height=20, width=40, units="cm")
+
+#doesn't look great, so let's try facet_wrap style
+
+all <- temp_all %>%
+  relocate(site, date_time, temp_c, p_h) %>%
+  rename(Site=site) %>%
+  pivot_longer(cols=temp_c:p_h,
+               names_to = "group",
+               values_to = "value")
+
+#set order for sites
+all$Site <- factor(all$Site, levels=c("Lompoc Landing","Alegria","Bodega Bay"))
+
+#set custom color for sites
+pal <- c(
+  "Alegria" = "#D55E00",
+  "Lompoc Landing" = "#009E73", 
+  "Bodega Bay" = "#0072B2"
+)
+
+ggplot(all, aes(x=date_time, y=value, group=group)) +
+  geom_line(aes(color=Site), size=0.7, alpha=0.7) +
+  scale_color_manual(values = pal) + #color lines by custom site color palette
+  #geom_point(aes(color=group), size=0.5) +
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  facet_grid(group ~ ., 
+             scales = "free_y",
+             switch="both",
+             labeller = as_labeller(c(temp_c = "Temperature (C)", p_h = "pH"))) +
+  xlab("Date and time") +
+  ylab(NULL) +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=22),
+        axis.title.x=element_text(size=30),
+        axis.text.y=element_text(size=22),
+        legend.text=element_text(size=22),
+        legend.title = element_text(size=25),
+        strip.background = element_blank(),
+        strip.text.y = element_text(size = 30),
+        strip.placement = "outside")
+
+ggsave(here("figures", "sensors", "temp_all_facet.png"), height=50, width=60, units="cm")
+```
 
 Now, for some "Chan et al 2017" style analyses
 
