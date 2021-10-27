@@ -1135,14 +1135,14 @@ m <- list(
   pad = 4
 )
 
-fig <- plot_ly(width = 2000)
+fig <- plot_ly(width = 1800)
  
  fig <- fig %>% 
    add_trace(data = df_input, y=~p_h, x = ~date_time, name = "pH", yaxis = "y1", mode = "lines", type = "scatter", line=list(color="green")) 
 
 y2 <- list(
-  tickfont = list(color = "red"),
-  titlefont = list(color = "red"),
+  tickfont = list(color = "red", size=20),
+  titlefont = list(color = "red", size=30),
   overlaying = "y",
   side = "left",
   anchor="free",
@@ -1154,28 +1154,30 @@ fig <- fig %>%
 
 fig <- fig %>% 
   layout(
-    title = name, yaxis2 = y2, #yaxis3 = y3,
+    title = list(text=name,xanchor = 'center', yanchor =  'top'),
+    font= list(size = 20),
+    yaxis2 = y2, #yaxis3 = y3,
     xaxis = list(title = 'Date',
-                 domain = c(0.06, 1),
+                 domain = c(0.1, 1),
                  tick0 = "2021-06-14 08:00:00",
                  dtick = 7*86400000.0, 
-                 tickformat="%d-%b"),
+                 tickformat="%d-%b",
+                 titlefont = list(size = 30),
+                 tickfont = list(size = 20)),
     yaxis = list(title = "pH",
-              tickfont = list(color = "green"),
-              titlefont = list(color = "green"),
+              tickfont = list(color = "green", size=20),
+              titlefont = list(color = "green", size=30),
               side="left",
               anchor="free",
-              position=0.05),
+              position=0.08),
   showlegend = FALSE,
-  margin = m
-)
+  margin = m)
 
 return(fig)
 
 }
 
 #save it
-
 
 lol_cycle_fig <- figure(lol_cycle,"Lompoc Landing")
 
