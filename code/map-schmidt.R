@@ -32,10 +32,10 @@ ggplot() +
   #coord_cartesian(clip="off") + #remove coordinates to allow increasing margin for caption
   theme_minimal() +
   theme(legend.position="none",
-        plot.margin=unit(c(0,0,1,0),"cm"), #create lower margin for caption to fit
+        plot.margin=unit(c(0,0,1.8,0),"cm"), #create lower margin to fit caption
         axis.title=element_text(size=20),
         axis.text=element_text(size=15),
-        plot.caption=element_textbox_simple(hjust=0.7, vjust=1.5, size=14, width=1.2)) #allow caption to wrap
+        plot.caption=element_textbox_simple(hjust=0.55, vjust=1.8, size=16, width=1.2)) #allow caption to wrap
         #plot.caption = element_text(hjust=0, size=14))
 
 ggsave("figures/fig1.png", width=6, height=10)
