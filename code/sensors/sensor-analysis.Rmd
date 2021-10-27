@@ -188,12 +188,17 @@ bml_temp <- read_csv(here("data","sensors", "hobo_bml.csv")) %>%
   
 ### Combine the tides with the pH/temp values for BML, plot it up!
 ```{r}
-bml_all <- full_join(bml, bml_tide) %>%
+bml_all_tide <- full_join(bml, bml_tide) %>%
   drop_na(c(tide, p_h)) %>% #whoops, started off collecting data every 10 minutes and then switched to 15 minutes (so account for that by removing pH and tide values that don't overlap)
   distinct(date_time, .keep_all = TRUE) #remove duplicated data (not sure where those came from)
 
+bml_all <- full_join(bml_all_tide, bml_temp) %>%
+  drop_na(c(temp_hobo_c, p_h)) %>% #remove hobo measurements taken outside of Durafet measurements
+  rename(temp_durafet_c=temp_c,
+         temp_c=temp_hobo_c)
+
 bml3 <- bml_all %>%
-  pivot_longer(cols=temp_c:tide,
+  pivot_longer(cols=temp_durafet_c:temp_c,
                names_to = "data",
                values_to = "value")
   
@@ -917,6 +922,54 @@ ggsave(here("figures", "sensors", "ph_alg.png"), height=20, width=40, units="cm"
 # Save the "final" df to a .csv file
 write.csv(ph_all, here("data", "sensors", "ph_clean.csv"), row.names = FALSE)
 ```
+
+# Let's also compare temperature across sites
+Keep in mind, I don't have HOBO data from Alegria still unfortunately
+```{r}
+#add site identity before joining
+bml_temp_join <- bml_detide_temp %>%
+  select(date_time, temp_c) %>%
+  mutate(site = "Bodega Bay")
+
+lol_temp_join <- lol_detided %>%
+  select(date_time, temp_c) %>%
+  mutate(site = "Lompoc Landing")
+
+alg_join <- alg_no_noise %>%
+  select(date_time, temp_c) %>%
+  #rename(temp_hobo_c=temp_c) %>%
+  mutate(site = "Alegria")
+
+#join these all together into one df
+temp_all <- merge_recurse(list(bml_temp_join, lol_temp_join, alg_join))
+
+#set order for sites
+temp_all$site <- factor(temp_all$site, levels=c("Lompoc Landing","Alegria","Bodega Bay"))
+
+#set custom color for sites
+pal <- c(
+  "Alegria" = "#D55E00",
+  "Lompoc Landing" = "#009E73", 
+  "Bodega Bay" = "#0072B2"
+)
+
+ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
+  geom_line(aes(color=site), size=0.7, alpha=0.8) +
+  scale_color_manual(values = pal) + #color lines by custom site color palette
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date and time") +
+  ylab("Temperature") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15),
+        legend.position = "none")
+
+ggsave(here("figures", "sensors", "temp_all.png"), height=20, width=40, units="cm")
+```
+
 
 Now, for some "Chan et al 2017" style analyses
 
