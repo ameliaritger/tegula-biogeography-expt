@@ -1,0 +1,75 @@
+---
+title: "Smoothing pH and temperature data for easier visualization"
+author: "Amelia Ritger"
+date: "10/28/2021"
+output: html_document
+---
+
+# Load packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      messages = FALSE, 
+                      error = FALSE,
+                      warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(lubridate)
+library(scales) #for plotting time series data
+```
+
+# Read in the data
+```{r}
+raw <- read_csv(here("data","sensors", "ph_clean.csv")) %>%
+  mutate(temp_c=ifelse(is.na(temp_c==TRUE), temp_durafet_c, temp_c)) #use durafet temp values as "TEMP" values, until I recover HOBO from Alegria
+
+alg <- raw %>%
+  filter(site=="Alegria")
+
+lol <- raw %>%
+  filter(site=="Lompoc Landing")
+
+bml <- raw %>%
+  filter(site=="Bodega Bay")
+```
+
+# First pass low pass filter, loess
+```{r}
+ggplot(bml, aes(x=date_time, y=temp_c)) +
+  geom_point() +
+  geom_smooth(method="loess", span=0.2) #span 0.3 looks similar to method="gam"
+```
+
+## Try low pass loess filtering for all sites
+```{r}
+#set order for sites
+raw$site <- factor(raw$site, levels=c("Lompoc Landing","Alegria","Bodega Bay"))
+
+#set custom color for sites
+pal <- c(
+  "Alegria" = "#D55E00",
+  "Lompoc Landing" = "#009E73", 
+  "Bodega Bay" = "#0072B2"
+)
+
+ggplot(raw, aes(x=date_time, y=p_h, group=site)) +
+  geom_line(aes(color=site), size=0.7, alpha=0.3) +
+  scale_color_manual(values = pal) + #color lines by custom site color palette
+  geom_smooth(aes(color=site), method="loess", span=0.1) + #span 0.3 looks similar to method="gam"
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  #xlab("Date and time") +
+  ylab("pH") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        #element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_blank(),
+        #element_text(size=15),
+        axis.text.y=element_text(size=12),
+        #axis.ticks.x=element_blank(),
+        axis.title.y=element_text(size=15),
+        legend.position = "none")
+
+ggsave(here("figures", "sensors", "ph_smooth.png"), height=20, width=40, units="cm")
+```
+
