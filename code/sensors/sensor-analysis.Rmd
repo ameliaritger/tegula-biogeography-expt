@@ -1149,7 +1149,7 @@ Removed additional anomalous time points (noise or major jumps, especially in wr
 - All data collected before 06/18/2021 at ALG, plus 46 extra points
 - 9 from LOL
 
-## Zoom in on LOL as an example of pH variation within tidepool
+# Zoom in on LOL as an example of pH variation within tidepool
 ### Create df (remove anomalous points)
 ```{r}
 lol_cycle <- lol_all %>%
@@ -1226,6 +1226,31 @@ orca(lol_cycle_fig, file="lol-cycle-full.png") #save plotly image
 filesstrings::move_files("lol-cycle-full.png", here("figures", "sensors"), overwrite=TRUE) #move the image to the "Figures" folder
 ```
 Alternatively, check out https://plotly.com/r/multiple-axes/
+
+## Zoom in on that period of time where pH jumped from 8.2 to 7.2
+```{r}
+lol_cycle_zoom <- lol_cycle %>%
+  filter(date_time < ymd_hms("2021-08-03 00:00:00"),
+         date_time > ymd_hms("2021-07-29 00:00:00"))
+
+y1 <- lol_cycle_zoom$temp_c
+y2 <- lol_cycle_zoom$temp_c
+y3 <- lol_cycle_zoom$tide
+x <- lol_cycle_zoom$date_time
+
+highchart() %>% 
+  hc_add_series(data = y1, dashStyle="solid") %>% 
+  hc_add_series(data = y2, yAxis = 1) %>% 
+  #hc_add_series(data = y3, yAxis = 1) %>%
+  hc_yAxis_multiples(
+     list(lineWidth = 3, lineColor='#D55E00', title=list(text="Temp")),
+     #list(lineWidth = 3, lineColor="#009E73", title=list(text="pH")),
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="pH"))) %>%
+    hc_xAxis(title = "Date", categories = x, breaks=10) %>%
+  hc_colors(c("#D55E00",
+              "#009E73",
+              "#0072B2"))
+```
 
 
 Next steps:
