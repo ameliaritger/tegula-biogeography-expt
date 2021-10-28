@@ -47,15 +47,16 @@ raw$site <- factor(raw$site, levels=c("Lompoc Landing","Alegria","Bodega Bay"))
 
 #set custom color for sites
 pal <- c(
-  "Alegria" = "#D55E00",
-  "Lompoc Landing" = "#009E73", 
-  "Bodega Bay" = "#0072B2"
+  "Alegria" = "#CC6677",
+  "Lompoc Landing" = "#44AA99",
+  "Bodega Bay" = "#6699CC"
 )
 
+#Run this for pH
 ggplot(raw, aes(x=date_time, y=p_h, group=site)) +
-  geom_line(aes(color=site), size=0.7, alpha=0.3) +
+  geom_line(aes(color=site), size=0.7, alpha=0.4) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
-  geom_smooth(aes(color=site), method="loess", span=0.1) + #span 0.3 looks similar to method="gam"
+  geom_smooth(aes(color=site), method="loess", span=0.1) +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   #xlab("Date and time") +
@@ -72,11 +73,11 @@ ggplot(raw, aes(x=date_time, y=p_h, group=site)) +
 
 ggsave(here("figures", "sensors", "ph_smooth.png"), height=20, width=40, units="cm")
 
-
+#Run this for temperature
 ggplot(raw, aes(x=date_time, y=temp_c, group=site)) +
-  geom_line(aes(color=site), size=0.7, alpha=0.3) +
+  geom_line(aes(color=site), size=0.7, alpha=0.4) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
-  geom_smooth(aes(color=site), method="loess", span=0.1) + #span 0.3 looks similar to method="gam"
+  geom_smooth(aes(color=site), method="loess", span=0.1) + 
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   #xlab("Date and time") +
@@ -94,3 +95,50 @@ ggplot(raw, aes(x=date_time, y=temp_c, group=site)) +
 ggsave(here("figures", "sensors", "temp_smooth.png"), height=20, width=40, units="cm")
 ```
 
+## Combine these into a single figure 
+```{r}
+raw_combine <- raw %>%
+  select(site, date_time, temp_c, p_h) %>%
+  pivot_longer(cols=temp_c:p_h,
+               names_to = "group",
+               values_to = "value")
+
+ggplot(raw_combine, aes(x=date_time, y=value, group=group, color=site)) +
+  #geom_line(aes(color=site), size=0.7, alpha=0.2) +
+  geom_line(aes(x=date_time, y=value, group=group), data = . %>% filter((site %in% c("Alegria"))), alpha=0.4) + #plot only ALG line
+  geom_line(aes(x=date_time, y=value, group=group), data = . %>% filter((site %in% c("Lompoc Landing"))), alpha=0.4) + #plot only LOL
+  geom_line(aes(x=date_time, y=value, group=group), data = . %>% filter((site %in% c("Bodega Bay"))), alpha=0.4) + #plot only BML
+  geom_smooth(aes(group=site), method="loess", span=0.1, se=FALSE) + 
+  scale_color_manual(values = pal) + #color lines by custom site color palette
+  #geom_point(aes(color=group), size=0.5) +
+  scale_x_datetime(breaks = date_breaks("1 week"),
+                   labels = date_format("%b-%d"),
+                   # limits = as.POSIXct(strptime(c("2021-06-20 07:00",
+                   #                                "2021-10-08 07:00"),
+                   #                              format = "%Y-%m-%d %H:%M")),
+                    # c(as.POSIXct("2021-06-14 00:07:30"),as.POSIXct("2021-10-08 00:07:00")),
+                     expand = c(0, 0)) + 
+  facet_grid(group ~ ., #facet wrap to create one panel for pH and one for temp
+             scales = "free_y",
+             switch="both",
+             labeller = as_labeller(c(temp_c = "Temperature (C)", p_h = "pH"))) + #customize strip labels
+  xlab("Date and time") +
+  ylab(NULL) + #remove "Value" from Y axis label
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=22),
+        #axis.title.x=element_text(size=25),
+        axis.title.x=element_blank(),
+        axis.text.y=element_text(size=22),
+        legend.text=element_text(size=20),
+        legend.title = element_blank(),
+        #element_text(size=25),
+        legend.position = c(0.92,0.95), #customize legend position on plot
+        #legend.key.size = unit(4,"line"),
+        #legend.key.height = unit(1,"cm"),
+        strip.background = element_blank(), #remove strip background from facet_grid
+        strip.text.y = element_text(size = 25),
+        strip.placement = "outside") + #place the strip outside of the plot
+  guides(colour = guide_legend(override.aes = list(size=5))) #make the legend line wider, for easier viewing
+
+ggsave(here("figures", "sensors", "smooth_all.png"), height=20, width=40, units="cm")
+```
