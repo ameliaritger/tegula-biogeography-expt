@@ -796,6 +796,7 @@ There's still some noise at a few dates, let's filter those dates out of the dat
 ### Remove (or smooth?) time periods with a LOT of noise
 ```{r}
 alg_no_noise <- alg_detide %>%
+  rename(temp_durafet_c=temp_c) %>%
   filter(!(date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00"))) %>% #this is a chunk of time with a lot of noise
   filter(!(date_time %in% (ymd_hms("2021-06-19 10:15:00", #remove time points with significant jumps in the wrong direction
                                   "2021-06-29 14:15:00",
@@ -939,8 +940,8 @@ lol_temp_join <- lol_detided %>%
   mutate(site = "Lompoc Landing")
 
 alg_join <- alg_no_noise %>%
-  select(date_time, temp_c, p_h) %>%
-  #rename(temp_hobo_c=temp_c) %>%
+  select(date_time, temp_durafet_c, p_h) %>%
+  rename(temp_c=temp_durafet_c) %>%
   mutate(site = "Alegria")
 
 #join these all together into one df
