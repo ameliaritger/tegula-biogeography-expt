@@ -1163,6 +1163,10 @@ lol_cycle <- lol_all %>%
          !(date_time == ymd_hms("2021-09-15 09:15:00")),
          !(date_time == ymd_hms("2021-08-20 00:15:00"))) %>%
   mutate(cycle=ifelse(tide>=3.232, "high", "low"))
+
+
+# Save the "final" df to a .csv file
+write.csv(lol_cycle, here("data", "sensors", "lol_all.csv"), row.names = FALSE)
 ```
 
 ### Plot up all data from LOL to show extent of pH and temperature drops within pool - code from Li (thank you)
