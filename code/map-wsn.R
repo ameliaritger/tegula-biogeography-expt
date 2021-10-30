@@ -19,6 +19,9 @@ ggplot() +
   xlim(-127,-114) +
   xlab("Longitude") +
   ylab("Latitude") +
+  geom_segment(aes(x = -Inf, y = 34.5, xend = -120, yend = 34.5), linetype="dashed") +
+  geom_segment(aes(x = -120.5, y = 34.5, xend = -119.5, yend = 35.4), linetype="dashed") +
+  geom_text(aes(x=-119.9, y=35.6, label="Pt. Conception"), size=5, hjust=-0.2) +
   geom_point(data=sites, aes(x=long, y=lat, color=name, size=6)) +
   scale_size_continuous(range = c(7, 7)) +
   scale_color_manual(values=c("#CC6677", "#6699CC", "#44AA99")) +
@@ -31,6 +34,7 @@ ggplot() +
   theme(legend.position="none",
         axis.title=element_text(size=20),
         axis.text=element_text(size=15))
+  
 
 ggsave("figures/wsn-map.png", width=8, height=10)
 
