@@ -21,7 +21,7 @@ library(rvest) #to scrape tide data from the internet
 library(reshape) #to ultimately merge BML, LOL, and ALG
 library(gt) #create nice table for presentations
 library(webshot) #save gt() table
-library(highcharter) #create highcart to interact with data
+library(highcharter) #create highchart to interact with data
 library(webshot) #save highcharts to .png files
 library(plotly) #create plots with multiple y axes
 library(filesstrings) #move plotly figure to proper folder location
@@ -31,7 +31,7 @@ library(filesstrings) #move plotly figure to proper folder location
 ```{r}
 all <- read_csv(here("data","sensors", "sensor-data_all.csv")) %>% 
   clean_names() %>%
-  mutate(date_time=mdy_hms(date_time), #aapply lubridate to date/time column
+  mutate(date_time=mdy_hms(date_time), #apply lubridate to date/time column
          date=format(date_time, '%m/%d/%Y'), #create only date column
          time=format(date_time, '%H:%M:%S')) %>% #create only time column
  select(site, sensor_number, date_time, date, time, temp_c, p_h) %>%
@@ -65,7 +65,7 @@ ggplot(all_filter, aes(x=date_time, y=p_h, group=site)) +
         axis.title.y=element_text(size=15),
         legend.text=element_text(siz=12))
 
-ggsave(here("figures", "sensors", "june-sept.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "june-sept.png"), height=20, width=40, units="cm")
 ```
 
 ### Plot temp up for good measure
@@ -79,7 +79,7 @@ ggplot(all, aes(x=date_time, y=temp_c, group=site)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors","june-sept_temp.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors","june-sept_temp.png"), height=20, width=40, units="cm")
 ```
 
 # Plot each site, temp and pH 
@@ -166,7 +166,7 @@ ggplot(bml_tide, aes(x=date_time, y=tide)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors", "bml_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "bml_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Extract temp values from HOBO logger, clean up for overlap with BML readings
@@ -209,7 +209,7 @@ ggplot(bml3, aes(x=date_time, y=value, group=data)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors", "bml_pH_temp_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "bml_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Remove measurements where the sensor was out of the water (at a tide lower than -0.5, possibly higher (TBD))
@@ -328,7 +328,7 @@ ggplot(lol_tide, aes(x=date_time, y=tide)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors", "lol_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "lol_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Extract temp values from HOBO logger, clean up for overlap with LOL readings
@@ -420,7 +420,7 @@ ggplot(lol_plot, aes(x=date_time, y=value, group=data)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors", "lol_pH_temp_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "lol_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Remove measurements where the sensor pool was disconnected from the ocean (at a tide lower than +0.5, likely higher (TBD))
@@ -524,7 +524,7 @@ ggplot(lol_detide_temp_ph, aes(x=date_time)) +
         axis.text.y=element_text(size=12),
         axis.title.y=element_text(size=15))
 
-ggsave(here("figures", "sensors", "lol_detide_tide-temp.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "lol_detide_tide-temp.png"), height=20, width=40, units="cm")
 ```
 
 ### Plot up these data using a format similar to Li's for the LTER data - welcome, highchart!
@@ -690,7 +690,7 @@ ggplot(alg_tide, aes(x=date_time, y=tide)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors", "alg_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "alg_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Combine the tides with the pH/temp values for ALG, plot it up!
@@ -714,7 +714,7 @@ ggplot(alg_plot, aes(x=date_time, y=value, group=data)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "sensors", "alg_pH_temp_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "alg_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
 
@@ -788,7 +788,7 @@ ggplot(alg_detide, aes(x=date_time)) +
         axis.text.y=element_text(size=12),
         axis.title.y=element_text(size=15))
 
-ggsave(here("figures", "sensors", "alg_detide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "alg_detide.png"), height=20, width=40, units="cm")
 ```
 
 There's still some noise at a few dates, let's filter those dates out of the data
