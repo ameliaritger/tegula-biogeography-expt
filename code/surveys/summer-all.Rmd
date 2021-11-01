@@ -7,6 +7,12 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(lubridate)
+library(gt) #For presentable table(s)
 ```
 
 # RUN THIS AFTER RUNNING "summer-swath.Rmd", "summer-quadrat.Rmd"
@@ -15,22 +21,30 @@ Compare densities of Pachygraspus counted from swaths vs quadrats for each site
 ```{r}
 quadrat_pachy <- quadrat_sum %>%
   filter(species=="Small crabs") %>%
-  mutate(species=str_replace(species, "Small crabs", "quadrats"))
+  mutate(type=str_replace(species, "Small crabs", "quadrats"))
 
 swath_pachy <- swath_sum %>%
   filter(species=="Small crabs") %>%
-  mutate(species=str_replace(species, "Small crabs", "swaths"))
+  mutate(type=str_replace(species, "Small crabs", "swaths"))
 
-pachy_comp <- full_join(quadrat_pachy, swath_pachy) %>%
-  rename(type=species)
+pachy_comp <- full_join(quadrat_pachy, swath_pachy)
 
 #set site order for plotting
 pachy_comp$location <- factor(pachy_comp$location, levels=c("Cabrillo NM", "Alegria", "Lompoc Landing", "Bodega Bay", "Fogarty Creek", "Sokol Point"))
 
 ggplot(pachy_comp, aes(x=location, y=density_per_m2, fill=type)) +
-  geom_bar(position="dodge", stat="identity")
+  geom_bar(position="dodge", stat="identity") +
+  ylab(bquote('Species density ' (per ~m^2))) +
+  xlab("Location") +
+  theme_bw()  +
+  theme(axis.text.x=element_text(size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15),
+        legend.text=element_text(size=12),
+        legend.title=element_text(size=15))
 
-ggsave(here("figures", "pachygraspus-comparison.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "surveys", "pachygraspus-comparison.png"), height=20, width=40, units="cm")
 ```
 
 OK, so let's pretend that we didn't count Pachygraspus on the swaths...
@@ -40,10 +54,10 @@ Combine swath and quadrat data into one df (but remove swath pachygraspus counts
 quadrat_sum_no_pachy <- quadrat_sum %>%
   filter(!species=="Small crabs") %>%
   mutate(species=str_replace(species, "Whelks", "Small whelks")) %>% #separate kelletia from nucella/acanthinucella
-  rename(number_sampled=number_quadrats_sampled) #rename for joining dfs
+  dplyr::rename(number_sampled=number_quadrats_sampled) #rename for joining dfs
 
 swath_sum_join <- swath_sum %>%
-  rename(number_sampled=number_transects_sampled) #rename for joining dfs
+  dplyr::rename(number_sampled=number_transects_sampled) #rename for joining dfs
 
 #join the two df
 all <- full_join(swath_sum_join, quadrat_sum_no_pachy)
@@ -92,7 +106,7 @@ stars <- all_sum %>%
   filter(species=="Small stars" | species=="Large stars")
 
 ggplot(stars, aes(x=location, y=density_per_m2, fill=species)) +
-  geom_bar(position="dodge", stat="identity") 
+  geom_bar(position="dodge", stat="identity")
 
 #small stars and large stars show interesting trends, so let's keep them separate
 ```
@@ -113,9 +127,15 @@ ggplot(all_group, aes(x=location, y=density_per_m2, fill=species)) +
   geom_bar(position="dodge", stat="identity") +
   ylab(bquote('Species density ' (per ~m^2))) +
   xlab("Location") +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text.x=element_text(size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15),
+        legend.text=element_text(size=12),
+        legend.title=element_text(size=15))
 
-ggsave(here("figures", "summer-all.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "surveys", "summer-all.png"), height=20, width=40, units="cm")
 ```
 
 Plot relative frequencies of predator species for each site
@@ -124,7 +144,84 @@ ggplot(all_group, aes(x=location, y=density_per_m2, fill=species)) +
   geom_bar(position="fill", stat="identity") + #facet_wrap(~year)
   ylab("Species proportion") +
   xlab("Location") +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text.x=element_text(size=12),
+        axis.title.x=element_text(size=15),
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=15),
+        legend.text=element_text(size=12),
+        legend.title=element_text(size=15))
 
-ggsave(here("figures", "summer-all_proportion.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "surveys", "summer-all_proportion.png"), height=20, width=40, units="cm")
 ```
+
+
+```{r}
+swath_prep <- swath %>%
+  select(location, date, cancer_sp:octopus)
+
+quad_prep <- quadrat %>%
+  select(location, date, tegula_funebralis:leptasterias)
+
+all_raw <- full_join(swath_prep, quad_prep) %>%
+  dplyr::rename(pisaster_sp=pisaster,
+                henricia_sp=henricia,
+                kelletia_kelletii=kelletia,
+                mexacanthina_lugubris=mexacanthina,
+                acanthinucella_sp=acanthinucella,
+                pachygrapsus_crassipes=pachygraspus,
+                leptasterias_sp=leptasterias) %>%
+  pivot_longer(cols=cancer_sp:leptasterias_sp,
+               names_to = "species",
+               values_to = "count") %>%
+  mutate(species=str_replace(species,"sp", "spp")) %>%
+  filter(!species=="first_pisaster_m",
+         !species=="cancer_spp",
+         count>0,
+         date > "2021-6-20") %>% #only look at summer surveys
+  select(location, species) %>%
+  mutate(location=str_replace_all(location, "Bodega Bay", "Bodega"),
+         location=str_replace_all(location, "Bodega", "Bodega Bay")) %>% #I'm tired so I can't figure out a simpler way to do this
+  distinct() %>% #get distinct number of location and species combinations
+  mutate(species=str_replace(species, "_", " "), #remove underscore from organism names
+         species = sub("(.)", "\\U\\1", species, perl=TRUE), #capitalize organism names
+         species=str_replace(species, "_", "/"),  #%>% #replace underscore for ostrina/emarginata
+         empty="")
+
+#Set site order
+all_raw$location <- factor(all_raw$location, levels=c("Cabrillo NM", "Alegria", "Lompoc Landing", "Bodega Bay", "Fogarty Creek", "Sokol Point"))
+
+#Set species order
+all_raw$species <- factor(all_raw$species, levels=c("Tegula funebralis", "Nucella ostrina/emarginata", "Nucella canaliculata", "Acanthinucella spp", "Mexacanthina lugubris", "Kelletia kelletii", "Pachygrapsus crassipes", "Cancer antennarius", "Cancer productus", "Cancer oregonensis", "Leptasterias spp", "Henricia spp", "Pisaster spp","Octopus"))
+
+all_raw %>%
+  arrange(location, species) %>%
+  #dplyr::rename(rowname=location) %>%
+  gt(
+    groupname_col="location",
+    rowname_col="empty") %>%
+  cols_align(
+    align = "right",
+    columns = species) %>%
+  cols_label(
+    species = "") %>%
+  gtsave(here("figures", "surveys", "species_present.png"))
+
+#Create table of all observed species
+
+all_sp <- all_raw %>%
+  select(species) %>%
+  distinct()
+
+all_sp %>%
+  arrange(species) %>%
+  #dplyr::rename(rowname=location) %>%
+  gt() %>%
+  cols_align(
+    align = "left",
+    columns = species) %>%
+  cols_label(
+    species = "Observed species") %>%
+  gtsave(here("figures", "surveys", "species_all.png"))
+```
+
