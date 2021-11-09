@@ -141,7 +141,8 @@ ggplot(raw_combine, aes(x=date_time, y=value, group=group, color=site)) +
         legend.text=element_text(size=20),
         legend.title = element_blank(),
         #element_text(size=25),
-        legend.position = c(0.92,0.95), #customize legend position on plot
+        legend.position = c(0.91,0.60), #customize legend position on plot (bottom right)
+        #legend.position = c(0.92,0.95) #put legend on top right of plot
         #legend.key.size = unit(4,"line"),
         #legend.key.height = unit(1,"cm"),
         strip.background = element_blank(), #remove strip background from facet_grid
