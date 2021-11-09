@@ -545,8 +545,9 @@ plot <- highchart() %>%
     hc_xAxis(title = "Date", categories = x, breaks=10) %>%
   hc_colors(c("#D55E00","#009E73", "#0072B2"))
 
-htmlwidgets::saveWidget(widget = plot, file = here("figures", "sensors", "LOL_highchart.html"))
-webshot::webshot(url = here("figures", "sensors", "LOL_highchart.html"), file = here("figures", "sensors", "LOL_highchart.png"), delay=3)
+#Save the highchart
+#htmlwidgets::saveWidget(widget = plot, file = here("figures", "sensors", "LOL_highchart.html"))
+#webshot::webshot(url = here("figures", "sensors", "LOL_highchart.html"), file = here("figures", "sensors", "LOL_highchart.png"), delay=3)
 ```
 
 Well that was a bit of a waste of time
@@ -812,11 +813,10 @@ There's still some noise at a few dates, let's filter those dates out of the dat
 ### Remove (or smooth?) time periods with a LOT of noise
 ```{r}
 alg_no_noise <- alg_detide %>%
-  #rename(temp_durafet_c=temp_c) %>%
+  filter(!(date_time > ymd_hms("2021-10-25 19:00:00") & date_time < ymd_hms("2021-11-02 10:45:00"))) %>% #looks like another time when the sensor was sanded
   filter(!(date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00"))) %>% #this is a chunk of time with a lot of noise
-    filter(!(date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00"))) %>% #this is a chunk of time with a lot of noise
-      filter(!(date_time > ymd_hms("2021-10-25 19:00:00") & date_time < ymd_hms("2021-11-02 10:45:00"))) %>% #looks like another area where the sensor was sanded
-  filter(!(date_time %in% (ymd_hms("2021-06-19 10:15:00", #remove time points with significant jumps in the wrong direction
+  filter(!(date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00"))) %>% #this is a chunk of time with a lot of noise
+  filter(!(date_time %in% (ymd_hms("2021-06-19 10:15:00", #remove time points with significant jumps in the wrong direction, identified using highchart
                                   "2021-06-29 14:15:00",
                                   "2021-06-29 15:30:00",
                                   "2021-06-30 11:45:00",
@@ -839,11 +839,12 @@ alg_no_noise <- alg_detide %>%
                                   "2021-10-25 15:00:00",
                                   "2021-10-25 16:30:00"
 
-))))
+)))) %>%
+  rename(temp_c=temp_hobo_c) #rename this column so I can merge ALG with all other sites
 
 ggplot(alg_no_noise, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
-  geom_line(aes(y=temp_hobo_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("4 days"), 
                     labels = date_format("%m/%d %H:%m")) +
@@ -875,7 +876,7 @@ pal <- c(
   "Bodega Bay" = "#0072B2"
 )
 
-ph_plot <- ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
+ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
   geom_line(aes(color=site), size=0.7, alpha=0.8) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -892,7 +893,7 @@ ph_plot <- ggplot(ph_all, aes(x=date_time, y=p_h, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-#ggsave(here("figures", "sensors", "ph_all.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "ph_all.png"), height=20, width=40, units="cm")
 
 # For presentations, highlight one line at a time per site
 #BML focal
@@ -1179,7 +1180,7 @@ Filtering for tide heights based on temp/pH patterns
 
 Removed additional anomalous time points (noise or major jumps, especially in wrong direction)
 - 20 from BML
-- All data collected before 06/18/2021 at ALG, plus 46 extra points
+- All data collected before 06/18/2021 at ALG, data collected between 10/25/2021 and 11/02/2021, plus 65 extra points
 - 9 from LOL
 
 # Next: zoom in on LOL as an example of pH variation within tidepool
