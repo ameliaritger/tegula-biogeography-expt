@@ -1122,10 +1122,10 @@ bml_sd <- (sd(bml_detide_temp$p_h))
 bml_cv <- (bml_sd/bml_mean)*100 #coefficient of variation
 
 ph_table <- tribble(
-  ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",  ~"CV", 
-  "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv,
-  "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv,
-  "Alegria", alg_min, alg_max, alg_median, alg_cv) 
+  ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",  ~"CV", ~"< 7.8", 
+  "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv, bml_7.8,
+  "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv, lol_7.8,
+  "Alegria", alg_min, alg_max, alg_median, alg_cv, alg_7.8) 
 
 ph_table %>%
   gt() %>%
