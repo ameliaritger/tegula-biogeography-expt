@@ -52,13 +52,19 @@ pal <- c(
   "Bodega Bay" = "#6699CC"
 )
 
+#Set x axis limits
+lims <- as.POSIXct(strptime(c("2021-05-30 00:00:00", "2021-11-08 23:45:00"), 
+                   format = "%Y-%m-%d %H:%M:%S"))
+
 #Run this for pH
 ggplot(raw, aes(x=date_time, y=p_h, group=site)) +
   geom_line(aes(color=site), size=0.7, alpha=0.4) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
   geom_smooth(aes(color=site), method="loess", span=0.1) +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
-                    labels = date_format("%m/%d %H:%m")) +
+                   labels = date_format("%m/%d %H:%m"),
+                   limits = lims,
+                   expand = c(0, 0)) +
   #xlab("Date and time") +
   ylab("pH") +
   theme_bw() +
@@ -71,7 +77,7 @@ ggplot(raw, aes(x=date_time, y=p_h, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "sensors", "ph_smooth.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "smooth_ph.png"), height=20, width=40, units="cm")
 
 #Run this for temperature
 ggplot(raw, aes(x=date_time, y=temp_c, group=site)) +
@@ -79,7 +85,9 @@ ggplot(raw, aes(x=date_time, y=temp_c, group=site)) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
   geom_smooth(aes(color=site), method="loess", span=0.1) + 
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
-                    labels = date_format("%m/%d %H:%m")) +
+                   labels = date_format("%m/%d %H:%m"),
+                   limits=lims,
+                   expand = c(0, 0)) +
   #xlab("Date and time") +
   ylab("Temperature") +
   theme_bw() +
@@ -92,7 +100,7 @@ ggplot(raw, aes(x=date_time, y=temp_c, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "sensors", "temp_smooth.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "smooth_temp.png"), height=20, width=40, units="cm")
 ```
 
 ## Combine these into a single figure 
@@ -113,6 +121,7 @@ ggplot(raw_combine, aes(x=date_time, y=value, group=group, color=site)) +
   #geom_point(aes(color=group), size=0.5) +
   scale_x_datetime(breaks = date_breaks("1 week"),
                    labels = date_format("%b-%d"),
+                   limits = lims,
                    # limits = as.POSIXct(strptime(c("2021-06-20 07:00",
                    #                                "2021-10-08 07:00"),
                    #                              format = "%Y-%m-%d %H:%M")),
