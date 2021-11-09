@@ -192,9 +192,9 @@ bml_all_tide <- full_join(bml, bml_tide) %>%
   distinct(date_time, .keep_all = TRUE) #remove duplicated data (not sure where those came from)
 
 bml_all <- full_join(bml_all_tide, bml_temp) %>%
-  drop_na(c(temp_hobo_c, p_h)) %>% #remove hobo measurements taken outside of Durafet measurements
-  rename(temp_durafet_c=temp_c,
-         temp_c=temp_hobo_c)
+  drop_na(c(temp_c)) %>% #remove hobo measurements taken outside of Durafet measurements
+  rename(temp_durafet_c=temp_c) %>% #rename column of temp values taken from Durafet
+  mutate(temp_c=ifelse(is.na(temp_hobo_c==TRUE), temp_durafet_c, temp_hobo_c)) #the HOBO was deployed weeks after the Durafet, so create a new column accounting for this
 
 bml3 <- bml_all %>%
   pivot_longer(cols=temp_durafet_c:temp_c,
@@ -813,10 +813,16 @@ There's still some noise at a few dates, let's filter those dates out of the dat
 ### Remove (or smooth?) time periods with a LOT of noise
 ```{r}
 alg_no_noise <- alg_detide %>%
-  filter(!(date_time > ymd_hms("2021-10-25 19:00:00") & date_time < ymd_hms("2021-11-02 10:45:00"))) %>% #looks like another time when the sensor was sanded
-  filter(!(date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00"))) %>% #this is a chunk of time with a lot of noise
-  filter(!(date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00"))) %>% #this is a chunk of time with a lot of noise
-  filter(!(date_time %in% (ymd_hms("2021-06-19 10:15:00", #remove time points with significant jumps in the wrong direction, identified using highchart
+  mutate(p_h=ifelse((date_time > ymd_hms("2021-10-25 19:00:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, p_h),
+         temp_hobo_c=ifelse((date_time > ymd_hms("2021-10-25 19:00:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, temp_hobo_c)) %>% #since this is in the middle of the dataset, replace values with "NA" rather than remove entirely (otherwise when plotting, R will fill in the missing space with a straight line)
+  #filter(!(date_time > ymd_hms("2021-10-25 19:00:00") & date_time < ymd_hms("2021-11-02 10:45:00"))) %>% #looks like another time when the sensor was sanded
+  mutate(p_h=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, p_h),
+         temp_hobo_c=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, temp_hobo_c)) %>%
+    # filter(!(date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00"))) %>% #this is a chunk of time with a lot of noise
+  mutate(p_h=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, p_h),
+         temp_hobo_c=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, temp_hobo_c)) %>%
+  #filter(!(date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00"))) %>% #this is a chunk of time with a lot of noise
+  filter(!(date_time %in% (ymd_hms("2021-06-19 10:15:00", #remove individual time points with significant jumps in the wrong direction, identified using highchart
                                   "2021-06-29 14:15:00",
                                   "2021-06-29 15:30:00",
                                   "2021-06-30 11:45:00",
@@ -961,7 +967,6 @@ write.csv(ph_all, here("data", "sensors", "ph_clean.csv"), row.names = FALSE)
 ```
 
 # Let's also compare temperature across sites
-Keep in mind, I don't have HOBO data from Alegria still unfortunately
 ```{r}
 #add site identity before joining
 bml_temp_join <- bml_detide_temp %>%
@@ -973,8 +978,7 @@ lol_temp_join <- lol_detided %>%
   mutate(site = "Lompoc Landing")
 
 alg_join <- alg_no_noise %>%
-  select(date_time, temp_durafet_c, p_h) %>%
-  rename(temp_c=temp_durafet_c) %>%
+  select(date_time, temp_c, p_h) %>%
   mutate(site = "Alegria")
 
 #join these all together into one df
@@ -990,7 +994,7 @@ pal <- c(
   "Bodega Bay" = "#0072B2"
 )
 
-temp_plot <- ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
+ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
   geom_line(aes(color=site), size=0.7, alpha=0.8) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -1004,7 +1008,7 @@ temp_plot <- ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-#ggsave(here("figures", "sensors", "temp_all.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "temp_all.png"), height=20, width=40, units="cm")
 ```
 
 ## Let's try to combine pH and temperature plots into one grid
