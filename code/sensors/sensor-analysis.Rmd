@@ -1074,7 +1074,9 @@ Now, for some "Chan et al 2017" style analyses
 ## Look at the frequency of pH values below 7.8 
 ```{r}
 ph_7.8 <- ph_all %>%
+  #drop_na(c(tide)) %>%
   mutate(threshold = ifelse(p_h<7.8, "below", "above")) %>%
+  filter(!is.na(p_h)) %>% #remove the times with anomalous pH readings that were replaced with NA
   group_by(site, threshold) %>%
   summarize(tot_observations = n()) %>%
   ungroup() %>%
@@ -1093,12 +1095,16 @@ alg_7.8 <- ph_7.8[[6,3]]/alg_n
 
 # Create a nice table
 ```{r}
+#create df for ALG without NA values
+alg_no_na <- alg_no_noise %>%
+  filter(!is.na(p_h))
+  
 # Calculate min, max, average pH values for each site
-alg_min <- (min(alg_no_noise$p_h))
-alg_max <- (max(alg_no_noise$p_h))
-alg_median <- (median(alg_no_noise$p_h))
-alg_mean <- (mean(alg_no_noise$p_h))
-alg_sd <- (sd(alg_no_noise$p_h))
+alg_min <- (min(alg_no_na$p_h))
+alg_max <- (max(alg_no_na$p_h))
+alg_median <- (median(alg_no_na$p_h))
+alg_mean <- (mean(alg_no_na$p_h))
+alg_sd <- (sd(alg_no_na$p_h))
 alg_cv <- (alg_sd/alg_mean)*100 #coefficient of variation
 
 lol_min <- (min(lol_detided$p_h))
@@ -1132,14 +1138,14 @@ ph_table %>%
     colors = scales::col_factor( # <- bc it's a factor
       palette = c("#D55E00","#0072B2","#009E73"),
       domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
-  gtsave(here("figures", "sensors", "ph_table.png"))
+  gtsave(here("figures", "sensors", "table_ph.png"))
 
 # Calculate min, max, average temp values for each site
-alg_min <- (min(alg_no_noise$temp_c))
-alg_max <- (max(alg_no_noise$temp_c))
-alg_median <- (median(alg_no_noise$temp_c))
-alg_mean <- (mean(alg_no_noise$temp_c))
-alg_sd <- (sd(alg_no_noise$temp_c))
+alg_min <- (min(alg_no_na$temp_c))
+alg_max <- (max(alg_no_na$temp_c))
+alg_median <- (median(alg_no_na$temp_c))
+alg_mean <- (mean(alg_no_na$temp_c))
+alg_sd <- (sd(alg_no_na$temp_c))
 alg_cv <- (alg_sd/alg_mean)*100 #coefficient of variation
 
 lol_min <- (min(lol_detided$temp_c))
@@ -1173,7 +1179,7 @@ temp_table %>%
     colors = scales::col_factor( # <- bc it's a factor
       palette = c("#D55E00","#0072B2","#009E73"),
       domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
-  gtsave(here("figures", "sensors", "temp_table.png"))
+  gtsave(here("figures", "sensors", "table_temp.png"))
 ```
 
 # Summary (what I did)
