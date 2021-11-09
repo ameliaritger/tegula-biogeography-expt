@@ -20,8 +20,7 @@ library(scales) #for plotting time series data
 
 # Read in the data
 ```{r}
-raw <- read_csv(here("data","sensors", "ph_clean.csv")) %>%
-  mutate(temp_c=ifelse(is.na(temp_c==TRUE), temp_durafet_c, temp_c)) #use durafet temp values as "TEMP" values, until I recover HOBO from Alegria
+raw <- read_csv(here("data","sensors", "ph_clean.csv")) 
 
 alg <- raw %>%
   filter(site=="Alegria")
