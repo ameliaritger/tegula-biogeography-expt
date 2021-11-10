@@ -173,12 +173,17 @@ breaks_fun <- function(x) {
   )
 }
 
+#Set x axis limits
+lims <- as.POSIXct(strptime(c("2021-06-13 00:00:00", "2021-10-09 23:45:00"), 
+                   format = "%Y-%m-%d %H:%M:%S"))
+
 ggplot(lol_prep, aes(x=date_time, y=value, group=group)) +
   geom_line(aes(color=group), size=0.7, alpha=0.6) +
   geom_smooth(aes(group=group, color=group), method="loess", span=0.1) + 
   scale_color_manual(values = c("#117733", "#882255")) + #color lines by custom site color palette
   scale_x_datetime(breaks = date_breaks("1 week"),
                    labels = date_format("%b-%d"), #b makes month label June and not 06
+                   limits = lims, #set limits
                    expand = c(0, 0)) + 
   facet_grid(group ~ ., #facet wrap to create one panel for pH and one for temp
              scales = "free",
