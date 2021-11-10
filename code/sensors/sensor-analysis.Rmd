@@ -1215,6 +1215,56 @@ lol_cycle <- lol_all %>%
 write.csv(lol_cycle, here("data", "sensors", "lol_all.csv"), row.names = FALSE)
 ```
 
+### Create a nice table
+```{r}
+lol_7.8 <- lol_cycle %>%
+  mutate(threshold = ifelse(p_h<7.8, "below", "above")) %>%
+  group_by(threshold) %>%
+  summarize(tot_observations = n())
+
+#Get total number of observations - use double square brackets because it's a tibble
+lol_n <- lol_7.8[[1,2]] + lol_7.8[[2,2]]
+
+#Get frequency of pH values below 7.8
+lol_freq <- lol_7.8[[2,2]]/lol_n
+  
+# Calculate min, max, average pH and temp values
+plol_min <- (min(lol_cycle$p_h))
+plol_max <- (max(lol_cycle$p_h))
+plol_median <- (median(lol_cycle$p_h))
+plol_mean <- (mean(lol_cycle$p_h))
+plol_sd <- (sd(lol_cycle$p_h))
+plol_cv <- (lol_sd/lol_mean)*100 #coefficient of variation
+
+tlol_min <- (min(lol_detided$temp_c))
+tlol_max <- (max(lol_detided$temp_c))
+tlol_median <- (median(lol_detided$temp_c))
+tlol_mean <- (mean(lol_detided$temp_c))
+tlol_sd <- (sd(lol_detided$temp_c))
+tlol_cv <- (tlol_sd/tlol_mean)*100 #coefficient of variation
+
+#combine into a table
+ph_table <- tribble(
+  ~"Measurement", ~"Min", ~"Max", ~"Median",  ~"CV", ~"pH <7.8", 
+  "pH", plol_min, plol_max, plol_median, plol_cv, lol_freq,
+  "Temperature", tlol_min, tlol_max, tlol_median, tlol_cv, NA
+  )
+
+#make the table look nice
+ph_table %>%
+  gt() %>%
+  fmt_number(
+  columns = c("Min":"Median"),
+  rows = everything(),
+  decimals = 2) %>%
+  data_color(
+    columns = c("Measurement"),
+    colors = scales::col_factor( # <- bc it's a factor
+      palette = c("#117733","#882255"),
+      domain = c("pH", "Temperature"))) %>%
+  gtsave(here("figures", "sensors", "table_lol.png"))
+```
+
 
 Next steps:
 1. Talk to someone about overfiltering vs underfiltering LOL data - look at code chunk 595 (3.232 tide) vs 530 (2.0 tide)
