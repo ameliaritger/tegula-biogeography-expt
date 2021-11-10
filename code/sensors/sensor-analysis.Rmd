@@ -1217,6 +1217,5 @@ write.csv(lol_cycle, here("data", "sensors", "lol_all.csv"), row.names = FALSE)
 
 
 Next steps:
-1. Talk to someone about overfiltering vs underfiltering LOL data - look at code chunk 595 (3.232 tide) vs 530 (2.0 tide)
-
-4. Do high pass/low pass filtering on alk data to make visualization easier
+1. Talk to someone about overfiltering vs underfiltering LOL data - 3.232 tide vs 2.0 tide
+2. Triple check filtering of all sites (for pH and temp anomalies) so data can be published
