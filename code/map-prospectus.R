@@ -44,4 +44,19 @@ ggplot() +
         plot.caption=element_textbox_simple(hjust=0.55, vjust=1.8, size=16, width=1.2)) #allow caption to wrap
         #plot.caption = element_text(hjust=0, size=14))
 
-ggsave("figures/fig1.png", width=6, height=10)
+#ggsave("figures/fig-prospectus.png", width=6, height=10)
+
+ggplot() + 
+  geom_polygon(data=west_coast, aes(x = long, y = lat, group = group), 
+               color = "black", 
+               fill="antiquewhite")  +
+  coord_fixed(1.3) +
+  xlim(-127,-114) +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme(panel.grid.major = element_line(color = gray(.7),
+                                      linetype = "dashed", 
+                                      size = 0.5),
+        panel.background = element_rect(fill = "aliceblue"))
+
+ggsave("figures/fig-conceptual.png", width=6, height=10)
