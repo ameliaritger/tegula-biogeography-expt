@@ -30,11 +30,11 @@ ggplot() +
   xlab("Longitude") +
   ylab("Latitude") +
   #labs(caption="<b>Figure 1.</b> Map of study sites for Aim 2. Blue circles represent areas where community surveys were conducted. Red triangles represent areas where both oceanographic sensors were deployed and community surveys were conducted.") +
-  geom_point(data=sites, aes(x=long, y=lat, color=name, shape=shape), size=4.5) +
+  geom_point(data=sites, aes(x=long, y=lat), size=4.5) +
   geom_text(data=sites, aes(x=long, y=lat, label=name), size=6,
             hjust=ifelse(sites$name=='ALG',1,1.25), 
             vjust=ifelse(sites$name=='ALG',1.5,0)) +
-  scale_color_manual(values = c("orangered3", "orangered3", "royalblue4", "royalblue4", "orangered3","royalblue4")) +
+  #scale_color_manual(values = c("orangered3", "orangered3", "royalblue4", "royalblue4", "orangered3","royalblue4")) +
   #coord_cartesian(clip="off") + #remove coordinates to allow increasing margin for caption
   theme_minimal() +
   theme(legend.position="none",
@@ -44,7 +44,7 @@ ggplot() +
         plot.caption=element_textbox_simple(hjust=0.55, vjust=1.8, size=16, width=1.2)) #allow caption to wrap
         #plot.caption = element_text(hjust=0, size=14))
 
-#ggsave("figures/fig-prospectus.png", width=6, height=10)
+ggsave("figures/fig-prospectus2.png", width=6, height=10)
 
 ggplot() + 
   geom_polygon(data=west_coast, aes(x = long, y = lat, group = group), 
