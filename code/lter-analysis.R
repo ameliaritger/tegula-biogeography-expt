@@ -70,11 +70,11 @@ ts <- heatwaveR::ts2clm(naples_mhw, x=t, y=temp, climatologyPeriod = c("2003-01-
 mhw <- heatwaveR::detect_event(ts)
 
 #identify MHW events
-# mhw$event %>%
-#   dplyr::ungroup() %>%
-#   dplyr::select(event_no, duration, date_start, date_peak, date_end, intensity_max, intensity_cumulative) %>%
-#   dplyr::arrange(-intensity_max) %>%
-#   head(5)
+ mhw$event %>%
+   dplyr::ungroup() %>%
+   dplyr::select(event_no, duration, date_start, date_peak, date_end, intensity_max, intensity_mean, intensity_cumulative) %>%
+   dplyr::arrange(-intensity_max) %>%
+   head(5)
 
 #basic plots
 event_line(mhw, spread = 365, metric = "intensity_max",
@@ -89,9 +89,12 @@ ggplot(mhw$event, aes(x = date_start, y = intensity_max)) +
                                   label = "")) +
   labs(y = expression(paste("Max. intensity [", degree, "C]")), x = NULL)
 
-#extract dates from 2014 to 2016
+#subset for dates of interest
 mhw2 <- mhw$climatology %>% 
-  slice(450000:520000)
+  slice(450000:520000) #450000:520000 for 2014 to 2016, 468000:486000 for Oct 2014 to May 2015
+
+head(mhw2)
+tail(mhw2)
 
 #give geom_flame() at least one row on either side of the event in order to calculate the polygon corners smoothly
 mhw_top <- mhw2 %>% 
@@ -111,6 +114,9 @@ ggplot(mhw2, aes(x = t)) +
   scale_fill_manual(name = "Event Colour", 
                     values = c("all" = "salmon", 
                                "top" = "red")) +
-  scale_x_date(date_labels = "%b %Y") +
+  scale_x_date(date_labels = "%b %Y",
+               breaks = scales::date_breaks("6 months")) +
+  scale_y_continuous(limits = c(11, 23), breaks = seq(11, 23, by = 2)) +
   guides(colour = guide_legend(override.aes = list(fill = NA))) +
-  labs(y = expression(paste("Temperature [", degree, "C]")), x = NULL)
+  labs(y = expression(paste("Temperature [", degree, "C]")), x = NULL) +
+  theme(legend.position="none")
