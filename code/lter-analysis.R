@@ -59,18 +59,18 @@ ggplot(moh_nap, aes(x = date_time, y = temp_c, group=site)) +
 ##### Assess MHW
 
 # Reformat df to run heatwaveR
-naples_mhw <- naples %>%
+site_mhw <- mohawk %>%
   mutate(date=as.Date(date)) %>%
   rename(t=date,
          temp=temp_c) %>%
   select(-site, -serial, -year)
 
 # Detect the events in a time series
-ts <- heatwaveR::ts2clm(naples_mhw, x=t, y=temp, climatologyPeriod = c("2003-01-01", "2020-01-01"))
+ts <- heatwaveR::ts2clm(site_mhw, x=t, y=temp, climatologyPeriod = c("2003-01-01", "2020-01-01"))
 mhw <- heatwaveR::detect_event(ts)
 
 #identify MHW events
- mhw$event %>%
+mhw$event %>%
    dplyr::ungroup() %>%
    dplyr::select(event_no, duration, date_start, date_peak, date_end, intensity_max, intensity_mean, intensity_cumulative) %>%
    dplyr::arrange(-intensity_max) %>%
@@ -91,32 +91,47 @@ ggplot(mhw$event, aes(x = date_start, y = intensity_max)) +
 
 #subset for dates of interest
 mhw2 <- mhw$climatology %>% 
-  slice(450000:520000) #450000:520000 for 2014 to 2016, 468000:486000 for Oct 2014 to May 2015
+  slice(480000:535000) 
+
+#NAPLES: 450000:520000 for 2014 to 2016, 468000:486000 for Oct 2014 to May 2015
 
 head(mhw2)
 tail(mhw2)
 
+#create another "threshold" line for prospectus...
+mhw3 <- mhw2 %>%
+  mutate(thresh2=thresh+2,
+         thresh3=thresh+3)
+
 #give geom_flame() at least one row on either side of the event in order to calculate the polygon corners smoothly
-mhw_top <- mhw2 %>% 
+mhw_top <- mhw3 %>% 
   slice(5:111)
 
 #fancy mhw plot
-ggplot(mhw2, aes(x = t)) +
-  geom_flame(aes(y = temp, y2 = thresh, fill = "all"), show.legend = T) +
-  geom_flame(data = mhw_top, aes(y = temp, y2 = thresh, fill = "top"),  show.legend = T) +
-  geom_line(aes(y = temp, colour = "temp")) +
+ggplot(mhw3, aes(x = t)) +
+  geom_flame(aes(y = temp, y2 = thresh, fill = "all"), show.legend = F, alpha=0.8) +
+  geom_flame(data = mhw_top, aes(y = temp, y2 = thresh, fill = "top"),  show.legend = F) +
+  geom_line(aes(y = temp, colour = "temp"), alpha=0.4) +
   geom_line(aes(y = thresh, colour = "thresh"), size = 1.0) +
+  geom_line(aes(y = thresh3, colour = "thresh2"), size = 1.0) +
   geom_line(aes(y = seas, colour = "seas"), size = 1.2) +
   scale_colour_manual(name = "Line Colour",
                       values = c("temp" = "black", 
-                                 "thresh" =  "forestgreen", 
-                                 "seas" = "grey80")) +
+                                 "thresh" =  "chartreuse4", 
+                                 "thresh2" =  "red4", 
+                                 "seas" = "dodgerblue4")) +
   scale_fill_manual(name = "Event Colour", 
                     values = c("all" = "salmon", 
                                "top" = "red")) +
   scale_x_date(date_labels = "%b %Y",
-               breaks = scales::date_breaks("6 months")) +
-  scale_y_continuous(limits = c(11, 23), breaks = seq(11, 23, by = 2)) +
+               breaks = scales::date_breaks("4 months")) +
+  scale_y_continuous(limits = c(11, 24), breaks = seq(11, 24, by = 2)) +
   guides(colour = guide_legend(override.aes = list(fill = NA))) +
-  labs(y = expression(paste("Temperature [", degree, "C]")), x = NULL) +
-  theme(legend.position="none")
+  labs(y = expression(paste("Temperature (", degree, "C)")), x = NULL) +
+  theme_bw() +
+  theme(legend.position="none",
+        axis.text.x=element_text(size=22),
+        axis.title.y=element_text(size=25),
+        axis.text.y=element_text(size=22))
+
+ggsave("figures/mhwk_mhw.png", height=20, width=30, units="cm")
