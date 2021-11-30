@@ -65,7 +65,7 @@ ggplot(all_filter, aes(x=date_time, y=p_h, group=site)) +
         axis.title.y=element_text(size=15),
         legend.text=element_text(siz=12))
 
-#ggsave(here("figures", "sensors", "june-sept.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "june-sept.png"), height=20, width=40, units="cm")
 ```
 
 ### Plot temp up for good measure
@@ -166,7 +166,7 @@ ggplot(bml_tide, aes(x=date_time, y=tide)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-#ggsave(here("figures", "sensors", "bml_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "bml_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Extract temp values from HOBO logger, clean up for overlap with BML readings
@@ -210,17 +210,19 @@ ggplot(bml3, aes(x=date_time, y=value, group=data)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-#ggsave(here("figures", "sensors", "bml_pH_temp_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "bml_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Remove measurements where the sensor was out of the water (initially a tide lower than -0.5, but the "heatwave" on 6/15/21 shows how the temperature spikes disappear after filtering for tide of 0.2)
 ```{r}
 bml_detide <- bml_all %>%
-  filter(tide>0.2) %>%
+  mutate(tide_height=tide,
+         tide=ifelse(tide_height>0.2, "high", "low")) %>%
+  filter(tide=="high") %>%
   drop_na(c(p_h)) #drop observations that don't overlap (10 min vs 15 min sampling interval)
 
 ggplot(bml_detide, aes(x=date_time)) +
-  geom_line(aes(y=tide), color="red") + 
+  geom_line(aes(y=tide_height), color="red") + 
   geom_line(aes(y=temp_c), color="blue") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
@@ -239,7 +241,7 @@ bml_superfilter <- bml_detide %>%
 
 y1 <- bml_superfilter$temp_durafet_c
 y2 <- bml_superfilter$temp_c
-y3 <- bml_superfilter$tide
+y3 <- bml_superfilter$tide_height
 x <- bml_superfilter$date_time
 
 highchart() %>% 
@@ -264,7 +266,7 @@ bml_detide_temp <- bml_detide %>%
 
 ggplot(bml_detide_temp, aes(x=date_time)) +
   geom_line(aes(y=temp_c), color="red") + 
-  geom_line(aes(y=tide), color="blue") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=tide_height), color="blue") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 day"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
@@ -297,7 +299,7 @@ ggplot(bml_detide_temp, aes(x=date_time)) +
 #         axis.text.y=element_text(size=12),
 #         axis.title.y=element_text(size=15))
 # 
-# ggsave(here("figures", "sensors", "bml_detide_tide-temp-pH.png"), height=20, width=40, units="cm")
+# ggsave(here("figures",  "bml_detide_tide-temp-pH.png"), height=20, width=40, units="cm")
 ```
 
 ## LOL 
@@ -331,7 +333,7 @@ ggplot(lol_tide, aes(x=date_time, y=tide)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-#ggsave(here("figures", "sensors", "lol_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "lol_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Extract temp values from HOBO logger, clean up for overlap with LOL readings
@@ -423,16 +425,18 @@ ggplot(lol_plot, aes(x=date_time, y=value, group=data)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-#ggsave(here("figures", "sensors", "lol_pH_temp_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "lol_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Remove measurements where the sensor pool was disconnected from the ocean (at a tide lower than +0.5, likely higher (TBD))
 ```{r}
 lol_detide <- lol_all %>%
-  filter(tide>0.5)
+  mutate(tide_height=tide,
+         tide=ifelse(tide_height>0.5, "high", "low")) %>%
+  filter(tide=="high")
 
 ggplot(lol_detide, aes(x=date_time)) +
-  geom_line(aes(y=tide), color="red") + 
+  geom_line(aes(y=tide_height), color="red") + 
   geom_line(aes(y=temp_c), color="blue") +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
@@ -475,7 +479,7 @@ lol_check_peak <- lol_detide %>%
   mutate(peak = ifelse(row_number() %in% c(pk) == TRUE, 1, 0)) #if a row ID matches the row ID found by find_peaks, then call it "1" (if not, "0")
 
 ggplot(lol_check_peak, aes(x=date_time)) +
-  geom_line(aes(y=tide), color="red") + 
+  geom_line(aes(y=tide_height), color="red") + 
   geom_line(aes(y=temp_c), color="blue") +
   #geom_line(aes(y=diff), color="green") +
   #geom_line(aes(y=diff2), color="orange") +
@@ -488,7 +492,7 @@ ggplot(lol_check_peak, aes(x=date_time)) +
   scale_color_identity() +
   scale_size_identity() +
   geom_vline(aes(xintercept = date_time), lol_check_peak %>% filter(peak == 1)) + #if it's a peak, draw a vertical line
-  scale_y_continuous(breaks = round(seq(min(lol_check_peak$tide), max(lol_check_peak$tide), by = 0.5),1))
+  scale_y_continuous(breaks = round(seq(min(lol_check_peak$tide_height), max(lol_check_peak$tide_height), by = 0.5),1))
 ```
 
 Looks like anything below a 1.5 tide height is definitely disconnected from the ocean
@@ -496,7 +500,9 @@ Looks like anything below a 1.5 tide height is definitely disconnected from the 
 ### So now, let's filter based on anomalous pH measurements
 ```{r}
 lol_detide_temp_ph <- lol_all %>%
-  filter(tide>1.5) %>%
+  mutate(tide_height=tide,
+         tide=ifelse(tide_height>1.5, "high", "low")) %>%
+  filter(tide=="high") %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
   mutate(diff3 = p_h - lag(p_h, default = first(p_h))) #doesn't look like pH values jump extraordinarily
 
@@ -513,7 +519,7 @@ ggplot(lol_detide_temp_ph, aes(x=date_time)) +
 ggplot(lol_detide_temp_ph, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
   geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
-  geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   annotate(geom="text", x=as.POSIXct("2021-09-24 00:01:00"), y=19, hjust=0, label="Temp (C)", color="#D55E00", size=5) +
@@ -527,14 +533,14 @@ ggplot(lol_detide_temp_ph, aes(x=date_time)) +
         axis.text.y=element_text(size=12),
         axis.title.y=element_text(size=15))
 
-#ggsave(here("figures", "sensors", "lol_detide_tide-temp.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "lol_detide_tide-temp.png"), height=20, width=40, units="cm")
 ```
 
 ### Plot up these data using a format similar to Li's for the LTER data - welcome, highchart!
 ```{r}
 y1 <- lol_detide_temp_ph$p_h
 y2 <- lol_detide_temp_ph$temp_c
-y3 <- lol_detide_temp_ph$tide
+y3 <- lol_detide_temp_ph$tide_height
 x <- lol_detide_temp_ph$date_time
 
 plot <- highchart() %>% 
@@ -549,8 +555,8 @@ plot <- highchart() %>%
   hc_colors(c("#D55E00","#009E73", "#0072B2"))
 
 #Save the highchart
-#htmlwidgets::saveWidget(widget = plot, file = here("figures", "sensors", "LOL_highchart.html"))
-#webshot::webshot(url = here("figures", "sensors", "LOL_highchart.html"), file = here("figures", "sensors", "LOL_highchart.png"), delay=3)
+#htmlwidgets::saveWidget(widget = plot, file = here("figures", "LOL_highchart.html"))
+#webshot::webshot(url = here("figures", "LOL_highchart.html"), file = here("figures", "LOL_highchart.png"), delay=3)
 ```
 
 Well that was a bit of a waste of time
@@ -580,7 +586,7 @@ lol_wave_join <- full_join(lol_july, lol_wave) %>%
 
 y1 <- lol_wave_join$temp_c
 y2 <- lol_wave_join$wvht
-y3 <- lol_wave_join$tide
+y3 <- lol_wave_join$tide_height
 x <- lol_wave_join$date_time
 
 highchart() %>% 
@@ -633,7 +639,7 @@ lol_superfilter <- lol_all %>%
 
 y1 <- lol_superfilter$temp_c
 y2 <- lol_superfilter$temp_c
-y3 <- lol_superfilter$tide
+y3 <- lol_superfilter$tide_height
 x <- lol_superfilter$date_time
 
 highchart() %>% 
@@ -655,7 +661,9 @@ Nevermind it wasn't a waste of time! Highcharts are super useful! Looks like the
 ### Create df for LOL with values above tides of +3.232, and remove (or smooth?) anomalous time periods
 ```{r}
 lol_detided <- lol_detide_temp_ph %>%
-  filter(tide>3.232) %>%
+  mutate(tide_height=tide,
+         tide=ifelse(tide_height>3.232, "high", "low")) %>%
+  filter(tide=="high") %>%
   filter(!(date_time >= ymd_hms("2021-07-31 13:30:00") & date_time <= ymd_hms("2021-07-31 14:00:00")),
          (date_time != ymd_hms("2021-09-15 09:15:00")),
          !(date_time >= ymd_hms("2021-09-16 01:30:00") & date_time <= ymd_hms("2021-09-16 02:45:00")), #anomalous points here identified by comparing durafet and hobo temp logger values
@@ -694,7 +702,7 @@ ggplot(alg_tide, aes(x=date_time, y=tide)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-#ggsave(here("figures", "sensors", "alg_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "alg_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Combine the tides with the pH/temp values for ALG, plot it up!
@@ -737,7 +745,7 @@ ggplot(alg_plot, aes(x=date_time, y=value, group=data)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-#ggsave(here("figures", "sensors", "alg_pH_temp_tide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "alg_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
 ### Remove anomalous measurements at beginning of deployment (sensor was likely inundated with sand)
@@ -790,12 +798,14 @@ Tried 0.80, but still seeing some drop in pH
 ### Detide ALG data and plot
 ```{r}
 alg_detide <- alg_desand %>%
-  filter(tide>0.9)
+  mutate(tide_height=tide,
+         tide=ifelse(tide_height>0.9, "high", "low")) %>%
+  filter(tide=="high")
 
 ggplot(alg_detide, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
   geom_line(aes(y=temp_hobo_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
-  geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("4 days"), 
                     labels = date_format("%m/%d %H:%m")) +
   annotate(geom="text", x=as.POSIXct("2021-6-18 00:01:00"), y=19, hjust=0, label="Temp (C)", color="#D55E00", size=5) +
@@ -809,7 +819,7 @@ ggplot(alg_detide, aes(x=date_time)) +
         axis.text.y=element_text(size=12),
         axis.title.y=element_text(size=15))
 
-#ggsave(here("figures", "sensors", "alg_detide.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "alg_detide.png"), height=20, width=40, units="cm")
 ```
 
 There's still some noise at a few dates, let's filter those dates out of the data
@@ -854,7 +864,7 @@ alg_no_noise <- alg_detide %>%
 ggplot(alg_no_noise, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
   geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
-  geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("4 days"), 
                     labels = date_format("%m/%d %H:%m")) +
   annotate(geom="text", x=as.POSIXct("2021-6-18 00:01:00"), y=19, hjust=0, label="Temp (C)", color="#D55E00", size=5) +
@@ -1018,7 +1028,7 @@ ggsave(here("figures", "sensors", "temp_all.png"), height=20, width=40, units="c
 
 ```{r}
 #first, save it
-#ggsave(here("figures", "sensors", "temp_ph.pdf"), arrangeGrob(ph_plot, temp_plot), height=20, width=40, units="cm")
+#ggsave(here("figures", "temp_ph.pdf"), arrangeGrob(ph_plot, temp_plot), height=20, width=40, units="cm")
 
 #doesn't look great, so let's try facet_wrap style
 
@@ -1217,5 +1227,5 @@ write.csv(lol_cycle, here("data", "sensors", "lol_all.csv"), row.names = FALSE)
 
 
 Next steps:
-1. Talk to someone about overfiltering vs underfiltering LOL data - 3.232 tide vs 2.0 tide
+1. Check re: overfiltering vs underfiltering LOL data - 3.232 tide vs 2.0 tide
 2. Triple check filtering of all sites (for pH and temp anomalies) so data can be published
