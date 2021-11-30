@@ -20,7 +20,8 @@ library(scales) #for plotting time series data
 
 # Read in the data
 ```{r}
-raw <- read_csv(here("data","sensors", "ph_clean.csv")) 
+raw <- read_csv(here("data","sensors", "ph_clean.csv")) %>%
+  filter(tide=="high")
 
 alg <- raw %>%
   filter(site=="Alegria")
@@ -152,57 +153,3 @@ ggplot(raw_combine, aes(x=date_time, y=value, group=group, color=site)) +
 
 ggsave(here("figures", "smooth_prospectus.png"), height=20, width=40, units="cm")
 ```
-
-#Now do the same thing for LOL data 
-```{r}
-#Read in LOL data
-lol_all <- read_csv(here("data","sensors", "lol_all.csv"))
-
-lol_prep <- lol_all %>%
-  select(date_time, temp_c, p_h) %>%
-  pivot_longer(cols=temp_c:p_h,
-               names_to = "group",
-               values_to = "value")
-
-count <- 1
-breaks_fun <- function(x) {
-  count <<- count + 1L
-  switch(
-    count,
-    c(7.2, 7.6, 8.0, 8.6),
-    c(5, 10, 15, 20),
-  )
-}
-
-#Set x axis limits
-lims <- as.POSIXct(strptime(c("2021-06-13 00:00:00", "2021-10-09 23:45:00"), 
-                   format = "%Y-%m-%d %H:%M:%S"))
-
-ggplot(lol_prep, aes(x=date_time, y=value, group=group)) +
-  geom_line(aes(color=group), size=0.7, alpha=0.6) +
-  geom_smooth(aes(group=group, color=group), method="loess", span=0.1) + 
-  scale_color_manual(values = c("#117733", "#882255")) + #color lines by custom site color palette
-  scale_x_datetime(breaks = date_breaks("1 week"),
-                   labels = date_format("%b-%d"), #b makes month label June and not 06
-                   limits = lims, #set limits
-                   expand = c(0, 0)) + 
-  facet_grid(group ~ ., #facet wrap to create one panel for pH and one for temp
-             scales = "free",
-             switch="both",
-             labeller = as_labeller(c(temp_c = "Temperature (C)", p_h = "pH"))) + #customize strip labels
-  xlab("Date and time") +
-  ylab(NULL) + #remove "Value" from Y axis label
-  scale_y_continuous(breaks = scales::pretty_breaks(6)) +
-  theme_bw() +
-  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=22),
-        axis.title.x=element_blank(),
-        axis.text.y=element_text(size=22),
-        legend.position = "none",
-        strip.background = element_blank(), #remove strip background from facet_grid
-        strip.text.y = element_text(size = 25),
-        strip.placement = "outside") + #place the strip outside of the plot
-  guides(colour = guide_legend(override.aes = list(size=5))) #make the legend line wider, for easier viewing
-
-ggsave(here("figures", "sensors", "smooth_lol.png"), height=20, width=40, units="cm")
-```
-
