@@ -18,12 +18,12 @@ sites <- tribble(
 )
 
 ggplot() + 
-  geom_rect(data=data.frame(ymin = 34.4486, ymax = 42.8376, xmin = -Inf, xmax = Inf),
-            aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill = "#CC6677", alpha = 0.15) + #persistent upwelling
-  geom_rect(data=data.frame(ymax = 34.4486, ymin = 32.5, xmin = -Inf, xmax = Inf),
-            aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill = "#6699CC", alpha = 0.1) + #weak upwelling
-  geom_rect(data=data.frame(ymax = 49, ymin = 42.8376, xmin = -Inf, xmax = Inf),
-            aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill = "#44AA99", alpha = 0.1) + #intermittent upwelling
+  # geom_rect(data=data.frame(ymin = 34.4486, ymax = 42.8376, xmin = -Inf, xmax = Inf),
+  #           aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill = "#CC6677", alpha = 0.15) + #persistent upwelling
+  # geom_rect(data=data.frame(ymax = 34.4486, ymin = 32.5, xmin = -Inf, xmax = Inf),
+  #           aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill = "#6699CC", alpha = 0.1) + #weak upwelling
+  # geom_rect(data=data.frame(ymax = 49, ymin = 42.8376, xmin = -Inf, xmax = Inf),
+  #           aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill = "#44AA99", alpha = 0.1) + #intermittent upwelling
   geom_polygon(data=west_coast, aes(x = long, y = lat, group = group), fill = "grey", color = "black") + 
   coord_fixed(1.3) +
   xlim(-127,-114) +
@@ -44,7 +44,7 @@ ggplot() +
         plot.caption=element_textbox_simple(hjust=0.55, vjust=1.8, size=16, width=1.2)) #allow caption to wrap
           #plot.caption = element_text(hjust=0, size=14))
 
-ggsave("figures/fig-prospectus2.png", width=6, height=10)
+ggsave("figures/fig-prospectus3.png", width=6, height=10)
 
 ggplot() + 
   geom_polygon(data=west_coast, aes(x = long, y = lat, group = group), 
