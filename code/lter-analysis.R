@@ -103,28 +103,36 @@ ggplot(mhw$event, aes(x = date_start, y = intensity_max)) +
 
 #subset for dates of interest
 mhw2 <- mhw$climatology %>% 
-  slice(572000:669615)  #480000:535000 = 2015/16; 442650:698839 = 2014 to present; 593000:595000 = august 2018 HW; 572000:669615 2018 to present
+  slice(587000:607500)  #480000:535000 = 2015/16; 442650:698839 = 2014 to present; 593000:595000 = august 2018 HW; 572000:669615 2018 to present; 587000:607500 6 months 2018
 
 #NAPLES: 450000:520000 for 2014 to 2016, 468000:486000 for Oct 2014 to May 2015
 
 head(mhw2)
 tail(mhw2)
 
+#create another "threshold" line for prospectus...
+mhw3 <- mhw2 %>%
+  mutate(thresh2=thresh+2,
+         thresh3=thresh+3)
+
 #plot clean ribbon
-ggplot(mhw2, aes(x = t, ymax = pmax(thresh, temp), ymin = thresh)) +
+ggplot(mhw3, aes(x = t, ymax = pmax(thresh, temp), ymin = thresh)) +
   geom_ribbon(fill = "red") +
   geom_line(aes(y = temp, colour = "temp"), alpha=0.3) +
   geom_line(aes(y = thresh, colour = "thresh"), size = 1.0) +
+  geom_line(aes(y = thresh3, colour = "thresh2"), size = 1.0) +
+  #geom_line(aes(y = thresh2, colour = "thresh2"), size = 0.5, linetype="dashed") +
   geom_line(aes(y = seas, colour = "seas"), size = 1.2) +
   scale_colour_manual(name = "Line Colour",
                       values = c("temp" = "black", 
-                                 "thresh" =  "chartreuse4", 
-                                 "seas" = "grey")) +
+                                 "thresh" =  "chartreuse4",
+                                 "thresh2" =  "red4", 
+                                 "seas" = "dodgerblue4")) +
   scale_x_date(date_labels = "%b %Y",
-               breaks = scales::date_breaks("6 months"),
+               breaks = scales::date_breaks("2 months"),
                expand=c(0,0),
                limits = c(min(mhw2$t), 
-                          max = max(mhw2$t))) +
+                         max = max(mhw2$t))) +
   scale_y_continuous(limits = c(11, 24), breaks = seq(11, 24, by = 2)) +
   guides(colour = guide_legend(override.aes = list(fill = NA))) +
   labs(y = expression(paste("Temperature (", degree, "C)")), x = NULL) +
@@ -134,18 +142,14 @@ ggplot(mhw2, aes(x = t, ymax = pmax(thresh, temp), ymin = thresh)) +
         axis.title.y=element_text(size=25),
         axis.text.y=element_text(size=22))
 
-ggsave("figures/sbc_mhw181920.png", height=20, width=70, units="cm")
-
-
-#create another "threshold" line for prospectus...
-mhw3 <- mhw2 %>%
-  mutate(thresh2=thresh+2,
-         thresh3=thresh+3)
+ggsave("figures/sbc_mhw18freq.png", height=20, width=40, units="cm")
 
 #give geom_flame() at least one row on either side of the event in order to calculate the polygon corners smoothly
 mhw_top <- mhw3 %>% 
   slice(40:4000)
 
+geom_line(aes(y = thresh3, colour = "thresh2"), size = 1.0) +
+  "thresh2" =  "red4", 
 #fancy mhw plot
 ggplot(mhw3, aes(x = t)) +
   geom_flame(aes(y = temp, y2 = thresh, fill = "all"), show.legend = F, alpha=0.8) +
