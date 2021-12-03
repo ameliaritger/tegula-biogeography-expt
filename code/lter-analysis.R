@@ -11,10 +11,13 @@ bottom_temp <-  read_csv(here("data", "Bottom_temp_all_years_20201105.csv"), col
   mutate(temp_c=as.numeric(temp_c), #make temp column numeric (not character...)
          date_time=ymd_hm(date_time), #apply lubridate to date/time column
          year=format(date_time, '%Y'), #create only year column
-         date=format(date_time, '%Y/%m/%d')) #create only date column
+         date=format(date_time, '%Y/%m/%d')) %>% #create only date column
+  arrange(date)
+
+tail(bottom_temp)
 
 bottom_blob <- bottom_temp %>%
-  filter(date >= "2014/05/01" & date <= "2016/08/01") #look only at Blob timeframe
+  filter(date >= "2014/01/01" & date <= "2016/08/01") #look only at Blob timeframe
 
 mohawk <- bottom_temp %>%
   filter(site=="MOHK")
