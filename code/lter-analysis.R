@@ -11,6 +11,7 @@ bottom_temp <-  read_csv(here("data", "Bottom_temp_all_years_20201105.csv"), col
   mutate(temp_c=as.numeric(temp_c), #make temp column numeric (not character...)
          date_time=ymd_hm(date_time), #apply lubridate to date/time column
          year=format(date_time, '%Y'), #create only year column
+         month=format(date_time, '%m'),
          date=format(date_time, '%Y/%m/%d')) %>% #create only date column
   arrange(date)
 
@@ -23,7 +24,12 @@ mohawk <- bottom_temp %>%
   filter(site=="MOHK")
 
 naples <- bottom_temp %>%
-  filter(site=="NAPL")
+  filter(site=="NAPL") %>%
+  distinct(date_time, .keep_all = TRUE)
+
+naples_sum <- naples %>%
+  group_by("year", "month") %>%
+  summarize(temp_c=mean(temp_c))
 
 moh_nap <- bottom_blob %>%
   filter(site=="NAPL" | site=="MOHK")
@@ -62,15 +68,18 @@ ggplot(moh_nap, aes(x = date_time, y = temp_c, group=site)) +
 ##### Assess MHW
 
 # Reformat df to run heatwaveR
-site_mhw <- mohawk %>%
+site_mhw <- naples %>%
   mutate(date=as.Date(date)) %>%
   rename(t=date,
          temp=temp_c) %>%
   select(-site, -serial, -year)
 
 # Detect the events in a time series
-ts <- heatwaveR::ts2clm(site_mhw, x=t, y=temp, climatologyPeriod = c("2003-01-01", "2020-01-01"))
+ts <- heatwaveR::ts2clm(site_mhw, x=t, y=temp, climatologyPeriod = c("2002-08-16", "2020-07-09"))
 mhw <- heatwaveR::detect_event(ts)
+
+head(naples)
+tail(naples)
 
 #identify MHW events
 mhw$event %>%
@@ -94,7 +103,7 @@ ggplot(mhw$event, aes(x = date_start, y = intensity_max)) +
 
 #subset for dates of interest
 mhw2 <- mhw$climatology %>% 
-  slice(480000:535000) 
+  slice(442650:698839)
 
 #NAPLES: 450000:520000 for 2014 to 2016, 468000:486000 for Oct 2014 to May 2015
 
@@ -112,22 +121,20 @@ mhw_top <- mhw3 %>%
 
 #fancy mhw plot
 ggplot(mhw3, aes(x = t)) +
+  geom_line(aes(y = temp, colour = "temp"), alpha=0.3) +
   geom_flame(aes(y = temp, y2 = thresh, fill = "all"), show.legend = F, alpha=0.8) +
   geom_flame(data = mhw_top, aes(y = temp, y2 = thresh, fill = "top"),  show.legend = F) +
-  geom_line(aes(y = temp, colour = "temp"), alpha=0.4) +
   geom_line(aes(y = thresh, colour = "thresh"), size = 1.0) +
-  geom_line(aes(y = thresh3, colour = "thresh2"), size = 1.0) +
   geom_line(aes(y = seas, colour = "seas"), size = 1.2) +
   scale_colour_manual(name = "Line Colour",
                       values = c("temp" = "black", 
                                  "thresh" =  "chartreuse4", 
-                                 "thresh2" =  "red4", 
-                                 "seas" = "dodgerblue4")) +
+                                 "seas" = "grey")) +
   scale_fill_manual(name = "Event Colour", 
-                    values = c("all" = "salmon", 
+                    values = c("all" = "red", 
                                "top" = "red")) +
   scale_x_date(date_labels = "%b %Y",
-               breaks = scales::date_breaks("4 months")) +
+               breaks = scales::date_breaks("18 months")) +
   scale_y_continuous(limits = c(11, 24), breaks = seq(11, 24, by = 2)) +
   guides(colour = guide_legend(override.aes = list(fill = NA))) +
   labs(y = expression(paste("Temperature (", degree, "C)")), x = NULL) +
@@ -137,4 +144,4 @@ ggplot(mhw3, aes(x = t)) +
         axis.title.y=element_text(size=25),
         axis.text.y=element_text(size=22))
 
-ggsave("figures/mhwk_mhw.png", height=20, width=30, units="cm")
+ggsave("figures/sbc_mhw80.png", height=20, width=80, units="cm")
