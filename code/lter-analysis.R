@@ -86,11 +86,11 @@ mhw$event %>%
    dplyr::ungroup() %>%
    dplyr::select(event_no, duration, date_start, date_peak, date_end, intensity_max, intensity_mean, intensity_cumulative) %>%
    dplyr::arrange(-intensity_max) %>%
-   head(5)
+   head(10)
 
 #basic plots
-event_line(mhw, spread = 365, metric = "intensity_max",
-           start_date = "2015-10-06", end_date = "2015-10-19")
+event_line(mhw, spread = 90, metric = "intensity_max",
+           start_date = "2018-06-06", end_date = "2018-12-06")
 
 lolli_plot(mhw, metric = "intensity_max")
 lolli_plot(mhw, metric = "duration")
@@ -103,38 +103,28 @@ ggplot(mhw$event, aes(x = date_start, y = intensity_max)) +
 
 #subset for dates of interest
 mhw2 <- mhw$climatology %>% 
-  slice(442650:698839)
+  slice(572000:669615)  #480000:535000 = 2015/16; 442650:698839 = 2014 to present; 593000:595000 = august 2018 HW; 572000:669615 2018 to present
 
 #NAPLES: 450000:520000 for 2014 to 2016, 468000:486000 for Oct 2014 to May 2015
 
 head(mhw2)
 tail(mhw2)
 
-#create another "threshold" line for prospectus...
-mhw3 <- mhw2 %>%
-  mutate(thresh2=thresh+2,
-         thresh3=thresh+3)
-
-#give geom_flame() at least one row on either side of the event in order to calculate the polygon corners smoothly
-mhw_top <- mhw3 %>% 
-  slice(5:111)
-
-#fancy mhw plot
-ggplot(mhw3, aes(x = t)) +
+#plot clean ribbon
+ggplot(mhw2, aes(x = t, ymax = pmax(thresh, temp), ymin = thresh)) +
+  geom_ribbon(fill = "red") +
   geom_line(aes(y = temp, colour = "temp"), alpha=0.3) +
-  geom_flame(aes(y = temp, y2 = thresh, fill = "all"), show.legend = F, alpha=0.8) +
-  geom_flame(data = mhw_top, aes(y = temp, y2 = thresh, fill = "top"),  show.legend = F) +
   geom_line(aes(y = thresh, colour = "thresh"), size = 1.0) +
   geom_line(aes(y = seas, colour = "seas"), size = 1.2) +
   scale_colour_manual(name = "Line Colour",
                       values = c("temp" = "black", 
                                  "thresh" =  "chartreuse4", 
                                  "seas" = "grey")) +
-  scale_fill_manual(name = "Event Colour", 
-                    values = c("all" = "red", 
-                               "top" = "red")) +
   scale_x_date(date_labels = "%b %Y",
-               breaks = scales::date_breaks("18 months")) +
+               breaks = scales::date_breaks("6 months"),
+               expand=c(0,0),
+               limits = c(min(mhw2$t), 
+                          max = max(mhw2$t))) +
   scale_y_continuous(limits = c(11, 24), breaks = seq(11, 24, by = 2)) +
   guides(colour = guide_legend(override.aes = list(fill = NA))) +
   labs(y = expression(paste("Temperature (", degree, "C)")), x = NULL) +
@@ -144,4 +134,41 @@ ggplot(mhw3, aes(x = t)) +
         axis.title.y=element_text(size=25),
         axis.text.y=element_text(size=22))
 
-ggsave("figures/sbc_mhw80.png", height=20, width=80, units="cm")
+ggsave("figures/sbc_mhw181920.png", height=20, width=70, units="cm")
+
+
+#create another "threshold" line for prospectus...
+mhw3 <- mhw2 %>%
+  mutate(thresh2=thresh+2,
+         thresh3=thresh+3)
+
+#give geom_flame() at least one row on either side of the event in order to calculate the polygon corners smoothly
+mhw_top <- mhw3 %>% 
+  slice(40:4000)
+
+#fancy mhw plot
+ggplot(mhw3, aes(x = t)) +
+  geom_flame(aes(y = temp, y2 = thresh, fill = "all"), show.legend = F, alpha=0.8) +
+  geom_flame(data = mhw_top, aes(y = temp, y2 = thresh, fill = "top"),  show.legend = F) +
+  geom_line(aes(y = temp, colour = "temp"), alpha=0.3) +
+  geom_line(aes(y = thresh, colour = "thresh"), size = 1.0) +
+  geom_line(aes(y = seas, colour = "seas"), size = 1.2) +
+  scale_colour_manual(name = "Line Colour",
+                      values = c("temp" = "black", 
+                                 "thresh" =  "chartreuse4", 
+                                 "seas" = "grey")) +
+  scale_fill_manual(name = "Event Colour", 
+                    values = c("all" = "red", 
+                               "top" = "red")) +
+  scale_x_date(date_labels = "%b %d",
+               breaks = scales::date_breaks("1 week")) +
+  scale_y_continuous(limits = c(11, 24), breaks = seq(11, 24, by = 2)) +
+  guides(colour = guide_legend(override.aes = list(fill = NA))) +
+  labs(y = expression(paste("Temperature (", degree, "C)")), x = NULL) +
+  theme_bw() +
+  theme(legend.position="none",
+        axis.text.x=element_text(size=22),
+        axis.title.y=element_text(size=25),
+        axis.text.y=element_text(size=22))
+
+ggsave("figures/sbc_flame.png", height=20, width=80, units="cm")
