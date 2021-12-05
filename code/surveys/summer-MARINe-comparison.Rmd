@@ -7,6 +7,11 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(lubridate)
 ```
 
 # RUN THIS AFTER RUNNING "summer-all.Rmd"
@@ -105,15 +110,22 @@ Now plot MARINe data alongside my data
 marine_merge <- marine_merge %>%
   rename("location"="site",
          "species"="group_species",
-         "density_per_m2"="mean_density")
+         "density_per_m2"="mean_density") %>%
+  mutate(location=ifelse(location=="Bodega", "Bodega Bay", ifelse(location=="Sokol Point; Chilean Memorial", "Sokol Point", location)))
 
-all_merge <- full_join(marine_merge, all_group) %>%
+my_data <- read_csv(here("data", "surveys", "grouped_data.csv")) %>%
+  mutate(location=ifelse(location=="Cabrillo NM", "Cabrillo III",location))
+
+all_merge <- full_join(marine_merge, my_data) %>%
   mutate(n=ifelse(is.na(n), 1, n), #replace NA values with 1
          survey=ifelse(test=n>1, yes="MARINe", no="Ritger")) %>%
   filter(density_per_m2>0)
 
 #set species order for plotting
 all_merge$species <- factor(all_merge$species, levels=c("Tegula funebralis", "Whelks", "Crabs", "Small stars", "Large stars"))
+
+#set site order for plotting
+all_merge$location <- factor(all_merge$location, levels=c("Cabrillo III", "Alegria", "Lompoc Landing", "Bodega Bay", "Fogarty Creek", "Sokol Point"))
 
 ggplot(all_merge, aes(x=location, y=density_per_m2, fill=species)) +
   geom_bar(position="dodge", stat="identity") +
