@@ -87,3 +87,9 @@ ggplot(data=swath_sum, aes(x=location, y=density_per_m2, fill=species)) +
   
 ggsave(here("figures", "surveys", "summer-swaths.png"), height=20, width=40, units="cm")
 ```
+
+# Write this all to a .csv file for further analysis
+```{r}
+write.csv(swath_sum, here("data", "surveys", "summer_swath.csv"), row.names = FALSE)
+```
+
