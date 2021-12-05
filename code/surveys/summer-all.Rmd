@@ -15,15 +15,13 @@ library(lubridate)
 library(gt) #For presentable table(s)
 ```
 
-# RUN THIS AFTER RUNNING "summer-swath.Rmd", "summer-quadrat.Rmd"
-
 Compare densities of Pachygraspus counted from swaths vs quadrats for each site
 ```{r}
-quadrat_pachy <- quadrat_sum %>%
+quadrat_pachy <- read_csv(here("data", "surveys", "summer_quad.csv")) %>%
   filter(species=="Small crabs") %>%
   mutate(type=str_replace(species, "Small crabs", "quadrats"))
 
-swath_pachy <- swath_sum %>%
+swath_pachy <- quadrat_pachy <- read_csv(here("data", "surveys", "summer_swath.csv"))  %>%
   filter(species=="Small crabs") %>%
   mutate(type=str_replace(species, "Small crabs", "swaths"))
 
