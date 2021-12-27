@@ -29,15 +29,19 @@ library(filesstrings) #move plotly figure to proper folder location
 
 ## Read in the data
 ```{r}
-all <- read_csv(here("data","sensors", "sensor-data_all.csv")) %>% 
+all <- read_csv(here("data","sensors", "sensor-data_all_zoe.csv")) %>% 
   clean_names() %>%
+  unite("date_time", "date", "time", sep="\ ") %>%
   mutate(date_time=mdy_hms(date_time), #apply lubridate to date/time column
          date=format(date_time, '%m/%d/%Y'), #create only date column
          time=format(date_time, '%H:%M:%S')) %>% #create only time column
- select(site, sensor_number, date_time, date, time, temp_c, p_h) %>%
-    mutate(site=replace(site, site=="LOL", "Lompoc Landing"),
-           site=replace(site, site=="ALG", "Alegria"),
-           site=replace(site, site=="BML", "Bodega Bay")) #rename locations
+  mutate(location=replace(location, location=="lol", "Lompoc Landing"), #rename locations
+           location=replace(location, location=="alg", "Alegria"),
+           location=replace(location, location=="bml", "Bodega Bay")) %>%
+  select(location, sensor, date_time, date, time, temperature, p_h) %>%
+  rename(site=location,
+         sensor_number=sensor,
+         temp_c=temperature)
 ```
 
 ## Plot up the pH
