@@ -38,10 +38,29 @@ all <- read_csv(here("data","sensors", "sensor-data_all_zoe.csv")) %>%
   mutate(location=replace(location, location=="lol", "Lompoc Landing"), #rename locations
            location=replace(location, location=="alg", "Alegria"),
            location=replace(location, location=="bml", "Bodega Bay")) %>%
-  select(location, sensor, date_time, date, time, temperature, p_h) %>%
+  select(location, sensor, recovery_date, date_time, date, time, temperature, p_h) %>%
   rename(site=location,
          sensor_number=sensor,
          temp_c=temperature)
+
+# all <- read_csv(here("data","sensors", "sensor-data_all.csv")) %>% 
+#   clean_names() %>%
+#   #unite("date_time", "date", "time", sep="\ ") %>%
+#   mutate(date_time=mdy_hms(date_time), #apply lubridate to date/time column
+#          date=format(date_time, '%m/%d/%Y'), #create only date column
+#          time=format(date_time, '%H:%M:%S')) %>% #create only time column
+#   mutate(site=replace(site, site=="LOL", "Lompoc Landing"), #rename locations
+#            site=replace(site, site=="ALG", "Alegria"),
+#            site=replace(site, site=="BML", "Bodega Bay")) %>%
+#   select(site, sensor_number, download_date, date_time, date, time, temp_c, p_h)
+# 
+# zoe_sum <- zoe %>%
+#   group_by(site, sensor_number) %>%
+#   summarize(n=n())
+# 
+# all_sum <- all %>%
+#   group_by(site, sensor_number) %>%
+#   summarize(n=n())
 ```
 
 ## Plot up the pH
@@ -238,8 +257,8 @@ ggplot(bml_detide, aes(x=date_time)) +
 ### Check the tide height filtering for BML
 ```{r}
 bml_superfilter <- bml_detide %>%
-  filter(date_time > ymd_hms("2021-09-05 01:00:00"),
-         date_time < ymd_hms("2021-09-05 23:00:00"))  #7-30 to 8-06 is also interesting
+  filter(date_time > ymd_hms("2021-10-01 01:00:00"),
+         date_time < ymd_hms("2021-10-20 23:00:00"))  #7-30 to 8-06 is also interesting
 
 #Looking at the mid July dates, looks like I might need to filter out tides below -0.2? But then if I look at other dates, it's not as bad. -0.4 might actually be a good decision.
 
@@ -266,6 +285,7 @@ bml_detide_temp <- bml_detide %>%
   filter(!(date_time >= ymd_hms("2021-07-10 06:00:00") & date_time <= ymd_hms("2021-07-10 07:30:00")),
          !(date_time >= ymd_hms("2021-07-21 06:15:00") & date_time <= ymd_hms("2021-07-21 07:15:00")),
          !(date_time >= ymd_hms("2021-07-22 06:15:00") & date_time <= ymd_hms("2021-07-22 08:00:00")),
+         !(date_time >= ymd_hms("2021-10-10 17:45:00")),
          !(date_time >= ymd_hms("2021-07-23 07:15:00") & date_time <= ymd_hms("2021-07-23 08:30:00")))
 
 ggplot(bml_detide_temp, aes(x=date_time)) +
@@ -759,7 +779,8 @@ ggplot(alg_plot, aes(x=date_time, y=value, group=data)) +
 ### Remove anomalous measurements at beginning of deployment (sensor was likely inundated with sand)
 ```{r}
 alg_desand <- alg_all %>%
-  filter(date_time > ymd_hms("2021-06-18 01:00:00")) %>% #super weird, but pH looks like it stabilizes at 1AM post sand
+  filter(date_time > ymd_hms("2021-06-18 01:00:00"), #super weird, but pH looks like it stabilizes at 1AM post sand
+         date_time <= ymd_hms("2021-11-07 17:00:00")) %>% #and then here's a period of time at the end of deployment that needs to be removed
   distinct(date_time, .keep_all = TRUE) #remove duplicated data (not sure where those came from)
 
 ggplot(alg_desand, aes(x=date_time, y=p_h)) +
@@ -774,8 +795,8 @@ ggplot(alg_desand, aes(x=date_time, y=p_h)) +
 ### Check anomalous points and filter by tide height given pH patterns
 ```{r}
 alg_highchart <- alg_desand %>%
-  filter(date_time >= ymd_hms("2021-11-02 01:00:00") & date_time <= ymd_hms("2021-11-10 23:45:00")) %>%
-  filter(tide>=0.9)
+  filter(date_time >= ymd_hms("2021-11:05 01:00:00"))
+  #filter(tide>=0.9)
 
 y1 <- alg_highchart$p_h
 y2 <- alg_highchart$temp_hobo_c
