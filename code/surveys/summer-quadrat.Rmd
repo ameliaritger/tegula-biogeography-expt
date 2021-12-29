@@ -67,3 +67,7 @@ ggplot(data=quadrat_sum, aes(x=location, y=density_per_m2, fill=species)) +
 ggsave(here("figures", "surveys", "summer-quadrats.png"), height=10, width=25, units="cm")
 ```
 
+# Write this all to a .csv file for further analysis
+```{r}
+write.csv(quadrat_sum, here("data", "surveys", "summer_quad.csv"), row.names = FALSE)
+```

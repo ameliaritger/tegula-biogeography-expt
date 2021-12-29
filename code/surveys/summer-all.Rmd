@@ -13,9 +13,10 @@ library(here)
 library(janitor)
 library(lubridate)
 library(gt) #For presentable table(s)
-```
 
-# RUN THIS AFTER RUNNING "summer-swath.Rmd", "summer-quadrat.Rmd"
+quadrat_sum <- read_csv(here("data", "surveys", "summer_quad.csv"))
+swath_sum <- read_csv(here("data", "surveys", "summer_swath.csv"))
+```
 
 Compare densities of Pachygraspus counted from swaths vs quadrats for each site
 ```{r}
@@ -23,7 +24,7 @@ quadrat_pachy <- quadrat_sum %>%
   filter(species=="Small crabs") %>%
   mutate(type=str_replace(species, "Small crabs", "quadrats"))
 
-swath_pachy <- swath_sum %>%
+swath_pachy <- swath_sum  %>%
   filter(species=="Small crabs") %>%
   mutate(type=str_replace(species, "Small crabs", "swaths"))
 
@@ -157,10 +158,16 @@ ggsave(here("figures", "surveys", "summer-all_proportion.png"), height=20, width
 
 
 ```{r}
-swath_prep <- swath %>%
+swath_prep <- read_csv(here("data", "surveys", "summer-swath.csv")) %>% 
+  clean_names() %>% 
+  mutate(date=mdy(date))%>% #apply lubridate to date column
+  mutate_at(vars("pachygraspus":"octopus"), ~replace_na(., 0)) %>% #replace NAs with 0 for all species columnsread_csv()
   select(location, date, cancer_sp:octopus)
 
-quad_prep <- quadrat %>%
+quad_prep <- read_csv(here("data", "surveys", "summer-quadrat.csv")) %>% 
+  clean_names() %>% 
+  mutate(date=mdy(date))%>% #apply lubridate to date column
+  mutate_at(vars("tegula_funebralis":"leptasterias"), ~replace_na(., 0)) %>% #replace NAs with 0 for all species columns
   select(location, date, tegula_funebralis:leptasterias)
 
 all_raw <- full_join(swath_prep, quad_prep) %>%
@@ -225,3 +232,7 @@ all_sp %>%
   gtsave(here("figures", "surveys", "species_all.png"))
 ```
 
+# Write this all to a .csv file for further analysis
+```{r}
+write.csv(all_group, here("data", "surveys", "grouped_data.csv"), row.names = FALSE)
+```
