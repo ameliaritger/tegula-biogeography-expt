@@ -54,7 +54,7 @@ auto_filter <- auto %>%
   mutate(removeit = ifelse(site=="Alegria" & date_time<ymd_hms("2021-06-30 23:00:00"), "remove", "keep")) %>%
   filter(removeit=="keep")
 
-ggplot(auto, aes(x=date_time, y=p_h, group=site)) +
+ggplot(auto_filter, aes(x=date_time, y=p_h, group=site)) +
   geom_line(aes(color=site), size=0.7) +
   geom_point(aes(color=site), size=0.5) +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -74,7 +74,7 @@ ggplot(auto, aes(x=date_time, y=p_h, group=site)) +
 
 ### Plot temp up for good measure
 ```{r}
-ggplot(auto, aes(x=date_time, y=temp_c, group=site)) +
+ggplot(auto_filter, aes(x=date_time, y=temp_c, group=site)) +
   geom_line(aes(color=site), size=0.7) +
   geom_point(aes(color=site), size=0.5) +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -167,7 +167,8 @@ bml_auto <- full_join(bml_auto_tide, bml_temp) %>%
   drop_na(c(temp_c)) %>% #remove hobo measurements taken outside of Durafet measurements
   rename(temp_durafet_c=temp_c) %>% #rename column of temp values taken from Durafet
   mutate(temp_hobo_c=ifelse((date_time==ymd_hms("2021-06-11 08:45:00")), NA, temp_hobo_c)) %>% #some HOBO values are quite odd, replace with NA
-  mutate(temp_c=ifelse(is.na(temp_hobo_c==TRUE), temp_durafet_c, temp_hobo_c)) #the HOBO was deployed weeks after the Durafet, so create a new column accounting for this
+  mutate(temp_c=ifelse(is.na(temp_hobo_c==TRUE), temp_durafet_c, temp_hobo_c)) %>% #the HOBO was deployed weeks after the Durafet, so create a new column accounting for this
+  filter(date_time <= ymd_hms("2021-10-08 19:00:00")) #remove observations where sensor was not in field
 
 bml_check <- bml_auto %>%
   pivot_longer(cols=temp_durafet_c:temp_c,
@@ -189,20 +190,32 @@ ggplot(bml_check, aes(x=date_time, y=value, group=data)) +
 ```{r}
 bml_detide <- bml_auto %>%
   mutate(tide_height=tide,
-         tide=ifelse(tide_height>=0.2, "high", "low")) %>%
-  #filter(tide=="high") %>%
+         tide=ifelse(tide_height>=0.21, "high", "low")) %>%
+  filter(tide=="high") %>%
   drop_na(c(p_h)) #drop observations that don't overlap (10 min vs 15 min sampling interval)
-
+  
 ggplot(bml_detide, aes(x=date_time)) +
-  geom_line(aes(y=tide_height), color="red") + 
-  geom_line(aes(y=temp_c), color="blue") + # Divide by 10 to get the same range than the temperature
+  geom_point(aes(y=tide_height, color=tide), size=0.1) + 
+  geom_point(aes(y=temp_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
-```
 
+#Create interactive plot to check filtering
+library(plotly)
+#run this without filtering out low tide values
+p <- bml_detide %>%
+  #filter(date_time < ymd_hms("2021-06-18 01:00:00")) %>%
+         #date_time > ymd_hms("2021-06-20 01:00:00")) %>%
+  ggplot(aes(x=date_time)) +
+  geom_line(aes(y=tide_height, color=tide)) + 
+  geom_point(aes(y=temp_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
+  theme_bw()
+
+ggplotly(p)
+```
 
 (!(date_time >= ymd_hms("2021-07-10 06:00:00") & date_time <= ymd_hms("2021-07-10 07:30:00")),
          !(date_time >= ymd_hms("2021-07-21 06:15:00") & date_time <= ymd_hms("2021-07-21 07:15:00")),
@@ -210,42 +223,48 @@ ggplot(bml_detide, aes(x=date_time)) +
          !(date_time >= ymd_hms("2021-10-10 17:45:00")),
          !(date_time >= ymd_hms("2021-07-23 07:15:00") & date_time <= ymd_hms("2021-07-23 08:30:00")))
          
-### Check the tide height filtering for BML
+### Check anomalous points for BML with highchart
 ```{r}
 bml_superfilter <- bml_detide %>%
-  filter(date_time > ymd_hms("2021-06-10 01:00:00"),
-         date_time < ymd_hms("2021-06-12 23:00:00"))  #7-30 to 8-06 is also interesting
+  filter(date_time > ymd_hms("2021-07-01 01:00:00"),
+         date_time < ymd_hms("2021-07-30 23:00:00"))  #7-30 to 8-06 is also interesting
 
 #Looking at the mid July dates, looks like I might need to filter out tides below -0.2? But then if I look at other dates, it's not as bad. -0.4 might actually be a good decision.
 
-y1 <- bml_superfilter$temp_durafet_c
+y1 <- bml_superfilter$p_h
 y2 <- bml_superfilter$temp_c
 y3 <- bml_superfilter$tide_height
 x <- bml_superfilter$date_time
 
 highchart() %>% 
-  hc_add_series(data = y3, dashStyle="solid") %>% 
+  hc_add_series(data = y1, dashStyle="solid") %>% 
   hc_add_series(data = y2, yAxis = 1) %>% 
-  #hc_add_series(data = y3, yAxis = 2) %>% 
+  #hc_add_series(data = y1, yAxis = 2) %>% 
   hc_yAxis_multiples(
-     list(lineWidth = 3, lineColor="#009E73", title=list(text="Durafet Temperature")),
+     list(lineWidth = 3, lineColor="#009E73", title=list(text="Tide height")),
      #list(lineWidth = 3, lineColor="red", title=list(text="Temperature")),
-     list(lineWidth = 3, lineColor="#0072B2", title=list(text="Tide height"))) %>%
+     list(lineWidth = 3, lineColor="#0072B2", title=list(text="temp_c"))) %>%
     hc_xAxis(title = "Date", categories = x, breaks=10) %>%
   hc_colors(c("#009E73", "#0072B2"))
 ```
 
-### Let's filter more, now based on anomalous temperature measurements (spikes in July)
+### Let's filter more, now based on anomalous temperature measurements
 ```{r}
 bml_detide_temp <- bml_detide %>%
-  filter(!(date_time >= ymd_hms("2021-07-10 06:00:00") & date_time <= ymd_hms("2021-07-10 07:30:00")),
-         !(date_time >= ymd_hms("2021-07-21 06:15:00") & date_time <= ymd_hms("2021-07-21 07:15:00")),
-         !(date_time >= ymd_hms("2021-07-22 06:15:00") & date_time <= ymd_hms("2021-07-22 08:00:00")),
-         !(date_time >= ymd_hms("2021-10-10 17:45:00")),
-         !(date_time >= ymd_hms("2021-07-23 07:15:00") & date_time <= ymd_hms("2021-07-23 08:30:00")))
+  filter(!(date_time == ymd_hms("2021-07-28 02:15:00")),
+         !(date_time == ymd_hms("2021-08-13 03:00:00")),
+         !(date_time == ymd_hms("2021-08-11 21:30:00")))
+  
+#here were the old filtered dates/times, spikes in July:
+  #filter(!(date_time >= ymd_hms("2021-07-10 06:00:00") & date_time <= ymd_hms("2021-07-10 07:30:00")),
+         #!(date_time >= ymd_hms("2021-07-21 06:15:00") & date_time <= ymd_hms("2021-07-21 07:15:00")),
+         #!(date_time >= ymd_hms("2021-07-22 06:15:00") & date_time <= ymd_hms("2021-07-22 08:00:00")),
+         #!(date_time >= ymd_hms("2021-10-10 17:45:00")),
+         #!(date_time >= ymd_hms("2021-07-23 07:15:00") & date_time <= ymd_hms("2021-07-23 08:30:00")))
 
 ggplot(bml_detide_temp, aes(x=date_time)) +
   geom_line(aes(y=temp_c), color="red") + 
+  geom_line(aes(y=p_h), color="green") + 
   geom_line(aes(y=tide_height), color="blue") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 day"), 
                     labels = date_format("%m/%d %H:%m")) +
