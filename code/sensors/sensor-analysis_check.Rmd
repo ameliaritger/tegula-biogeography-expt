@@ -597,9 +597,9 @@ The wave data isn't a magic bullet, but it does look like I might be overprocess
 ### Let's move on to continuing to process the data for "out of water"
 ```{r}
 lol_superfilter <- lol_detide %>%
-  filter(tide=="high") %>%
-  filter(date_time > ymd_hms("2021-07-01 01:00:00"),
-         date_time < ymd_hms("2021-07-10 23:00:00"))
+  #filter(tide=="high") %>%
+  filter(date_time > ymd_hms("2021-06-10 01:00:00"),
+         date_time < ymd_hms("2021-06-20 23:00:00"))
 
 #3.232 looks good, 3.29 is also a solid candidate for tide filtering
 #3.03, 2.89
@@ -613,7 +613,7 @@ x <- lol_superfilter$date_time
 highchart() %>% 
   hc_add_series(data = y2, dashStyle="solid") %>% 
   #hc_add_series(data = y2, yAxis = 1) %>% 
-  hc_add_series(data = y3, yAxis = 1) %>%
+  hc_add_series(data = y1, yAxis = 1) %>%
   hc_yAxis_multiples(
      list(lineWidth = 3, lineColor='#D55E00', title=list(text="pH")),
      #list(lineWidth = 3, lineColor="#009E73", title=list(text="Temp")),
@@ -684,16 +684,7 @@ lol_detided <- lol_all %>%
   mutate(tide_height=tide,
          tide=ifelse(tide_height>=2.85, "high", "low")) %>%
   #filter(tide=="high") %>%
-  filter(!(date_time >= ymd_hms("2021-07-31 13:30:00") & date_time <= ymd_hms("2021-07-31 14:00:00")),
-         (date_time != ymd_hms("2021-09-15 09:15:00")),
-         !(date_time >= ymd_hms("2021-09-16 01:30:00") & date_time <= ymd_hms("2021-09-16 02:45:00")), #anomalous points here identified by comparing durafet and hobo temp logger values
-         !(date_time >= ymd_hms("2021-08-01 13:45:00") & date_time < ymd_hms("2021-08-01 15:00:00"))) %>%
-  filter(!(date_time >= ymd_hms("2021-07-31 13:30:00") & date_time <= ymd_hms("2021-07-31 14:00:00")), #remove anomalous points (major jumps in pH)
-         !(date_time >= ymd_hms("2021-08-01 13:45:00") & date_time <= ymd_hms("2021-08-01 15:00:00")),
-         !(date_time >= ymd_hms("2021-06-26 16:45:00") & date_time <= ymd_hms("2021-06-26 18:00:00")),
-         !(date_time == ymd_hms("2021-07-13 08:00:00")),
-         !(date_time == ymd_hms("2021-08-19 03:30:00")),
-         !(date_time == ymd_hms("2021-08-20 00:15:00"))) %>%
+  filter(date_time != ymd_hms("2021-09-15 09:15:00")) %>% #remove an anomalous point
   drop_na() #remove times with tides but without pH values
 ```
 
