@@ -324,7 +324,7 @@ lol_temp <- read_csv(here("data","sensors", "hobo_lol.csv")) %>%
 ### Combine the tides with the pH/temp values for LOL, plot it up!
 ```{r}
 # filter all data for LOL
-lol <- all %>%
+lol <- auto %>%
   filter(site=="Lompoc Landing") %>%
   distinct(date_time, .keep_all = TRUE) #remove duplicated data (not sure where those came from)
 
@@ -357,13 +357,15 @@ highchart() %>%
 #Join pH, temp data with tide data
 lol_all <- full_join(lol_all_1, lol_tide) %>%
   drop_na(c(tide, p_h)) %>% #remove unnecessary tide values
-  rename(temp_c=temp_hobo_c) 
+  rename(temp_c=temp_hobo_c)
+```
 
-#Check if anomalous points in durafet vs hobo are due to tide cycle?
+### Check if anomalous points in durafet vs hobo are due to tide cycle?
+```{r}
 lol_check <- lol_all %>%
   mutate(diff=temp_durafet_c-temp_c) %>%
   filter(tide<3.232) #this value was extracted thanks to code later on
-  #filter((date_time > ymd_hms("2021-10-01 01:00:00") & date_time <= ymd_hms("2021-10-22 24:00:00")))
+  #filter((date_time < ymd_hms("2021--01 01:00:00") & date_time <= ymd_hms("2021-10-22 24:00:00")))
 
 #create a highchart to assess
 y1 <- lol_check$temp_durafet_c
@@ -381,8 +383,10 @@ highchart() %>%
      list(lineWidth = 3, lineColor="#0072B2", title=list(text="diff"))) %>%
     hc_xAxis(title = "Date", categories = x, breaks=10) %>%
   hc_colors(c("#D55E00","#009E73", "#0072B2"))
+```
 
-# Anomalous points aside, plot it "all" up
+### Anomalous points aside, plot it "all" up
+```{r}
 lol_plot <- lol_all %>%
   pivot_longer(cols=temp_durafet_c:tide,
                names_to = "data",
@@ -399,11 +403,11 @@ ggplot(lol_plot, aes(x=date_time, y=value, group=data)) +
 #ggsave(here("figures", "lol_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
-### Remove measurements where the sensor pool was disconnected from the ocean (at a tide lower than +0.5, likely higher (TBD))
+### Remove measurements where the sensor pool was disconnected from the ocean (at a tide lower than +0.5, likely higher (determined later on))
 ```{r}
 lol_detide <- lol_all %>%
   mutate(tide_height=tide,
-         tide=ifelse(tide_height>0.5, "high", "low"))
+         tide=ifelse(tide_height>=2.85, "high", "low")) #this value was extracted thanks to "peaks" code soon to come
   #filter(tide=="high")
 
 ggplot(lol_detide, aes(x=date_time)) +
@@ -419,7 +423,7 @@ ggplot(lol_detide, aes(x=date_time)) +
 ### Check the peaks (the peak is where the tide starts coming back in - when the pool is re-connected to the ocean and the temp drops), and ID where they are so I can filter
 ```{r}
 lol_check <- lol_detide %>%
-  filter(date_time < ymd_hms("2021-06-30 23:00:00")) %>%
+  filter(date_time < ymd_hms("2021-07-30 23:00:00")) %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
   mutate(diff = temp_c - lag(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
   mutate(diff2 = temp_c - lead(temp_c, default = first(temp_c))) #find difference between two subsequent temp measurements to identify anomalies
@@ -442,7 +446,8 @@ find_peaks <- function (x, m = 3){
 pk <- find_peaks(lol_check$temp_c, m = 50) #set a high threshold bc we need it...
 
 lol_check_peak <- lol_detide %>%
-  filter(date_time < ymd_hms("2021-06-30 23:00:00")) %>%
+  #filter(tide=="high") %>%
+  filter(date_time < ymd_hms("2021-07-30 23:00:00")) %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
   mutate(diff = temp_c - lag(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
   mutate(diff2 = temp_c - lead(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
@@ -452,7 +457,7 @@ lol_check_peak <- lol_detide %>%
 ggplot(lol_check_peak, aes(x=date_time)) +
   geom_line(aes(y=tide_height), color="red") + 
   geom_line(aes(y=temp_c), color="blue") +
-  #geom_line(aes(y=diff), color="green") +
+  geom_line(aes(y=diff), color="green") +
   #geom_line(aes(y=diff2), color="orange") +
   geom_point(aes(y=temp_c, color=ifelse(peak>0, "red", "black"), size=ifelse(peak>0, 2, 0))) + #if it's a peak, color it red and make it big
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -464,31 +469,25 @@ ggplot(lol_check_peak, aes(x=date_time)) +
   scale_size_identity() +
   geom_vline(aes(xintercept = date_time), lol_check_peak %>% filter(peak == 1)) + #if it's a peak, draw a vertical line
   scale_y_continuous(breaks = round(seq(min(lol_check_peak$tide_height), max(lol_check_peak$tide_height), by = 0.5),1))
+
+#2.850483 is a good candidate
 ```
 
 Looks like anything below a 1.5 tide height is definitely disconnected from the ocean
 
-### So now, let's filter based on anomalous pH measurements
+### So now, let's filter based on high tide, differences between consecutive pH measurements
 ```{r}
-lol_detide_temp_ph <- lol_all %>%
-  filter(tide>1.5) %>%
+lol_detide_temp_ph <- lol_detide %>%
+  filter(tide=="high") %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
   mutate(diff3 = p_h - lag(p_h, default = first(p_h))) #doesn't look like pH values jump extraordinarily
-
-ggplot(lol_detide_temp_ph, aes(x=date_time)) +
-  geom_line(aes(y=p_h), color="blue") +
-  geom_line(aes(y=diff3), color="green") +
-  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
-                    labels = date_format("%m/%d %H:%m")) +
-  xlab("Date time") +
-  theme_bw() +
-  theme(axis.text.x=element_text(angle=90))
 
 #And plot it up 
 ggplot(lol_detide_temp_ph, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
   geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
-  geom_line(aes(y=tide), color="#0072B2") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=diff3), color="green") +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   annotate(geom="text", x=as.POSIXct("2021-09-24 00:01:00"), y=19, hjust=0, label="Temp (C)", color="#D55E00", size=5) +
@@ -597,18 +596,18 @@ The wave data isn't a magic bullet, but it does look like I might be overprocess
 
 ### Let's move on to continuing to process the data for "out of water"
 ```{r}
-lol_superfilter <- lol_all %>%
-  #filter(tide>2.3) %>%
+lol_superfilter <- lol_detide %>%
+  filter(tide=="high") %>%
   filter(date_time > ymd_hms("2021-07-01 01:00:00"),
          date_time < ymd_hms("2021-07-10 23:00:00"))
 
 #3.232 looks good, 3.29 is also a solid candidate for tide filtering
-
+#3.03, 2.89
 #2.3, 2.68 are also good candidates - I want to make sure I'm not over-filtering
 
-y1 <- lol_superfilter$temp_c
+y1 <- lol_superfilter$p_h
 y2 <- lol_superfilter$temp_c
-y3 <- lol_superfilter$tide
+y3 <- lol_superfilter$tide_height
 x <- lol_superfilter$date_time
 
 highchart() %>% 
@@ -617,7 +616,7 @@ highchart() %>%
   hc_add_series(data = y3, yAxis = 1) %>%
   hc_yAxis_multiples(
      list(lineWidth = 3, lineColor='#D55E00', title=list(text="pH")),
-     list(lineWidth = 3, lineColor="#009E73", title=list(text="Temp")),
+     #list(lineWidth = 3, lineColor="#009E73", title=list(text="Temp")),
      list(lineWidth = 3, lineColor="#0072B2", title=list(text="Tide cycle"))) %>%
     hc_xAxis(title = "Date", categories = x, breaks=10) %>%
   hc_colors(c("#D55E00",
@@ -625,13 +624,65 @@ highchart() %>%
               "#0072B2"))
 ```
 
-Nevermind it wasn't a waste of time! Highcharts are super useful! Looks like the pool is *definitely* disconnected from the ocean at a tide lower than a +3.0...maybe a +3.02 (but possibly even +3.2 or +3.4)... but to be safe, let's stick with +2.0, I don't want to overfilter the data.
+Nevermind it wasn't a waste of time! Highcharts are super useful! Looks like the pool is *definitely* disconnected from the ocean at a tide lower than a +3.0...maybe a +3.02 (but possibly even +3.2 or +3.4)... but I don't want to overfilter the data.
 
-### Create df for LOL with values above tides of +3.232, and remove (or smooth?) anomalous time periods
+### Check results from various filtering tide heights
 ```{r}
-lol_detided <- lol_detide_temp_ph %>%
+lol_tide_options <- lol_detide %>%
+  mutate(tide_low=ifelse(tide_height>=2.85, "high", "low"),
+         tide_med=ifelse(tide_height>=3.03, "high", "low"),
+         tide_high=ifelse(tide_height>=3.232, "high", "low")) 
+
+lol_low <- lol_tide_options %>%
+  filter(tide_low=="high")
+
+lol_med <- lol_tide_options %>%
+  filter(tide_med=="high")
+
+lol_high <- lol_tide_options %>%
+  filter(tide_high=="high")
+
+ggplot(lol_tide_options, aes(x=date_time)) +
+  geom_line(aes(y=p_h)) +
+  geom_line(aes(y=temp_c)) +
+  #geom_line(aes(y=p_h, color=tide_med)) +
+  #geom_line(aes(y=p_h, color=tide_high)) +
+  #geom_line(aes(y=temp_c), color="blue") +
+  scale_x_datetime(breaks = scales::date_breaks("1 week"), 
+                    labels = date_format("%m/%d %H:%m")) +
+  xlab("Date time") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=90))
+
+ggsave(here("figures", "lol_high.png"), height=20, width=40, units="cm")
+
+ph_low <- lol_tide_options %>%
+  filter(tide_low=="high") %>%
+  #drop_na(c(tide)) %>%
+  mutate(threshold = ifelse(p_h<7.8, "below", "above")) %>%
+  filter(!is.na(p_h)) %>% #remove the times with anomalous pH readings that were replaced with NA
+  group_by(threshold) %>%
+  summarize(tot_observations = n()) %>%
+  ungroup()
+
+lol_minl <- (min(lol_low$p_h))
+lol_maxl <- (max(lol_low$p_h))
+lol_medianl <- (median(lol_low$p_h))
+lol_meanl <- (mean(lol_low$p_h))
+lol_sdl <- (sd(lol_low$p_h))
+lol_cvl <- (lol_sdl/lol_meanl)*100 #coefficient of variation
+
+#med tide filtering == higher cv (1.15 vs 1.11), same max, lower mean (7.940 vs 7.946), lower median (7.93 vs 7.94), lower min (7.50 vs 7.43), higher sd (0.092 vs 0.088), higher % low pH (3.49% vs 2.26%)
+#low tide filtering == highest cv (1.24), same max, lowest mean (7.93), lowest median (7.927), lowest min (7.28), highest sd (0.098), highest % low pH (4.70 %)
+```
+
+### in comparison with other sites, I think I'm overfiltering if I set the tide height for 3.232, so I'll make it as low as I'm comfortable with (the only big change is the min value is now lower than BML, but you can compare with the mean/median for more context)
+
+### Create df for LOL with values above tides of +2.85, and remove (or smooth?) anomalous time periods
+```{r}
+lol_detided <- lol_all %>%
   mutate(tide_height=tide,
-         tide=ifelse(tide_height>=3.232, "high", "low")) %>%
+         tide=ifelse(tide_height>=2.85, "high", "low")) %>%
   #filter(tide=="high") %>%
   filter(!(date_time >= ymd_hms("2021-07-31 13:30:00") & date_time <= ymd_hms("2021-07-31 14:00:00")),
          (date_time != ymd_hms("2021-09-15 09:15:00")),
@@ -1190,10 +1241,10 @@ At BML, sampling interval started at every 10 minutes and then switched to 15 mi
 Filtering for tide heights based on temp/pH patterns
 - All points at ALG were removed at tide heights below 0.9
 - All points at LOL were removed at tide heights below 2.0 (3.232 was also a good option, but I don't want to remove more values than need be... ask about this) 
-- All points at BML were removed at tide heights below 0.2
+- All points at BML were removed at tide heights below 0.21
 
 Removed additional anomalous time points (noise or major jumps, especially in wrong direction)
-- 20 from BML
+- 3 from BML
 - All data collected before 06/18/2021 at ALG, data collected between 10/25/2021 and 11/02/2021, plus 65 extra points
 - 9 from LOL
 
