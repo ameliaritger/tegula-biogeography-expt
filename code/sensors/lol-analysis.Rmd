@@ -22,7 +22,7 @@ library(scales) #for loess plot axis edits
 
 #Load data
 ```{r}
-lol_cycle <- read_csv(here("data","sensors", "lol_all.csv"))
+lol_cycle <- read_csv(here("data","sensors", "lol_all_final.csv"))
 ```
  
 ## Plot up all data from LOL to show extent of pH and temperature drops within pool - code from Li (thank you)
@@ -121,16 +121,16 @@ lol_prep <- lol_cycle %>%
   pivot_longer(cols=temp_c:p_h,
                names_to = "group",
                values_to = "value")
-
-count <- 1
-breaks_fun <- function(x) {
-  count <<- count + 1L
-  switch(
-    count,
-    c(7.2, 7.6, 8.0, 8.6),
-    c(5, 10, 15, 20),
-  )
-}
+# 
+# count <- 1
+# breaks_fun <- function(x) {
+#   count <<- count + 1L
+#   switch(
+#     count,
+#     c(7.2, 7.6, 8.0, 8.6),
+#     c(5, 10, 15, 20),
+#   )
+# }
 
 #Set x axis limits
 lims <- as.POSIXct(strptime(c("2021-06-13 00:00:00", "2021-10-09 23:45:00"), 
@@ -161,7 +161,7 @@ ggplot(lol_prep, aes(x=date_time, y=value, group=group)) +
         strip.placement = "outside") + #place the strip outside of the plot
   guides(colour = guide_legend(override.aes = list(size=5))) #make the legend line wider, for easier viewing
 
-ggsave(here("figures", "sensors", "smooth_lol.png"), height=20, width=40, units="cm")
+ggsave(here("figures", "sensors", "smooth_lol_final.png"), height=20, width=40, units="cm")
 ```
 
 ## Create a nice table
@@ -194,14 +194,14 @@ tlol_sd <- (sd(lol_cycle$temp_c))
 tlol_cv <- (tlol_sd/tlol_mean)*100 #coefficient of variation
 
 #combine into a table
-ph_table <- tribble(
+lol_table <- tribble(
   ~"Measurement", ~"Min", ~"Max", ~"Median",  ~"CV", ~"pH <7.8", 
   "pH", plol_min, plol_max, plol_median, plol_cv, lol_freq,
   "Temperature", tlol_min, tlol_max, tlol_median, tlol_cv, NA
   )
 
 #make the table look nice
-ph_table %>%
+lol_table %>%
   gt() %>%
   fmt_number(
   columns = c("Min":"Median"),
@@ -212,13 +212,11 @@ ph_table %>%
     colors = scales::col_factor( # <- bc it's a factor
       palette = c("#117733","#882255"),
       domain = c("pH", "Temperature"))) %>%
-  gtsave(here("figures", "sensors", "table_lol.png"))
+  gtsave(here("figures", "sensors", "table_lol_final.png"))
 ```
 
 ## Next steps:
 1. assess the greatest pH and temperature range in a 1 week period and monthly averages for LOL
-
-2. Re-filter all pH data based on HOBO temp data (especially, make annotations next to every single point/range that was filtered out, for future QC)
 
 # Check out greatest pH and temperature range in 24 hours
 ```{r}
@@ -232,15 +230,16 @@ max_vector = c() #create an empty vector for maximum values
 min_vector = c() #create an empty vector for minimum values
 #mylist <- list() #create an empty list
 
+#INTERCHANGE pH/TEMP!
 for (i in 1:nrow(lol_daily)){
   
   lol_for <- lol_daily %>%
     slice(i:(i+time)) %>% #select a 24 hour range
-    summarize(max_temp=max(p_h), #extract max value
-              min_temp=min(p_h)) #extract min value
+    summarize(max_value=max(temp_c), #extract max value of value (pH or temp)
+              min_value=min(temp_c)) #extract min value of value (pH or temp)
   
-  max_vector[i] <- lol_for$max_temp #add max values to vector
-  min_vector[i] <- lol_for$min_temp #add min values to vector
+  max_vector[i] <- lol_for$max_value #add max values to vector
+  min_vector[i] <- lol_for$min_value #add min values to vector
   
   print(paste("Finished with row", i))
 }
@@ -251,30 +250,30 @@ max_min_diff <- max_min %>%
   mutate(diff=max_vector-min_vector) %>%
   slice_max(diff, n=100) %>% #select the rows that contain the 100 minimum values of change in pH over 24 hours (n is so high because there are a lot of duplicates, understandably)
   distinct(diff, .keep_all = TRUE) %>% #only keep the distinct values of max-min
-  slice_max(diff, n=5)
+  slice_max(diff, n=4) #look at the n largest differences
 
 lol_change <- lol_daily %>%
-  filter(p_h %in% c(max_min_diff$max_vector,max_min_diff$min_vector))
+  filter(temp_c %in% c(max_min_diff$max_vector,max_min_diff$min_vector))
 
-print(lol_change$date_time) #check out the date/times associated with the greatest 24 hour change in max/min pH
+print(lol_change$date_time) #check out the date/times associated with the greatest 24 hour change in max/min value
 ```
 
 ## Plot it up
 ```{r}
-lol_ph <- lol_daily %>%
-  filter(date_time >= ymd_hms("2021-07-28 13:15:00"),
-         date_time <= ymd_hms("2021-08-04 13:15:00"))
+lol_val <- lol_daily %>%
+  filter(date_time >= ymd_hms("2021-06-12 13:15:00"),
+         date_time <= ymd_hms("2021-06-20 13:15:00"))
 
-ggplot(lol_ph, aes(x=date_time, y=temp_c)) +
+ggplot(lol_val, aes(x=date_time, y=temp_c)) +
   geom_line(size=0.7, alpha=0.4, color="#882255") +
   geom_point(color="#882255") +
   #scale_color_manual(values = pal) + #color lines by custom site color palette
   #geom_smooth(method="loess", span=0.1) + 
   scale_x_datetime(breaks = scales::date_breaks("1 day"), 
                    labels = date_format("%b-%d")) +
-  scale_y_continuous(limits = c(11, 24),
+  scale_y_continuous(limits = c(10,24), #temp: 11, 24; ph: 7, 9
                      expand = c(0,0),
-                     breaks=seq(11,24, by = 2)) +
+                     breaks=seq(10,24 , by = 2)) + #temp: 11, 24 by 2; ph: 7, 9 by 0.1
   #xlab("Date and time") +
   ylab("Temperature") +
   theme_bw() +
@@ -287,6 +286,73 @@ ggplot(lol_ph, aes(x=date_time, y=temp_c)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "24_temp_lol.png"), height=10, width=20, units="cm")
+ggsave(here("figures", "24_temp_lol_final.png"), height=10, width=20, units="cm")
 ```
 
+## Do the same for week and month
+```{r}
+lol_time <- lol_cycle %>%
+  select(date_time, p_h, temp_c) %>%
+  arrange(date_time)
+
+time <- (4*24*7*4)-1 #4 measurements per hour over 24 hours over 7 days and 4 weeks, subtract 1 for for loop
+
+max_vector = c() #create an empty vector for maximum values
+min_vector = c() #create an empty vector for minimum values
+#mylist <- list() #create an empty list
+
+#INTERCHANGE pH/TEMP!
+for (i in 1:nrow(lol_time)){
+  
+  lol_for <- lol_daily %>%
+    slice(i:(i+time)) %>% #select a time range
+    summarize(max_value=max(temp_c), #extract max value of value (pH or temp)
+              min_value=min(temp_c)) #extract min value of value (pH or temp)
+  
+  max_vector[i] <- lol_for$max_value #add max values to vector
+  min_vector[i] <- lol_for$min_value #add min values to vector
+  
+  print(paste("Finished with row", i))
+}
+
+max_min <-as.data.frame(cbind(max_vector, min_vector)) #combine max and min vectors into a df
+
+max_min_diff <- max_min %>%
+  mutate(diff=max_vector-min_vector) %>%
+  slice_max(diff, n=1000) %>% #select the rows that contain the 1000 minimum values of change in pH over time (n is so high because there are a lot of duplicates, understandably)
+  distinct(diff, .keep_all = TRUE) %>% #only keep the distinct values of max-min
+  slice_max(diff, n=10) #look at the n largest differences
+
+lol_change <- lol_time %>%
+  filter(temp_c %in% c(max_min_diff$max_vector,max_min_diff$min_vector))
+
+print(lol_change$date_time) #check out the date/times associated with the greatest 24 hour change in max/min value
+
+#plot it up
+lol_val <- lol_weekly %>%
+  filter(date_time >= ymd_hms("2021-06-07 13:15:00"),
+         date_time <= ymd_hms("2021-06-30 13:15:00"))
+
+ggplot(lol_val, aes(x=date_time, y=temp_c)) +
+  geom_line(size=0.7, alpha=0.4, color="#882255") +
+  geom_point(color="#882255") +
+  #scale_color_manual(values = pal) + #color lines by custom site color palette
+  #geom_smooth(method="loess", span=0.1) + 
+  scale_x_datetime(breaks = scales::date_breaks("1 day"), 
+                   labels = date_format("%b-%d")) +
+  scale_y_continuous(limits = c(10,24), #temp: 11, 24; ph: 7, 9
+                     expand = c(0,0),
+                     breaks=seq(10,24 , by = 2)) + #temp: 11, 24 by 2; ph: 7, 9 by 0.1
+  #xlab("Date and time") +
+  ylab("Temperature") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=12),
+        #element_text(angle=45, vjust = 1, hjust=1, size=12),
+        axis.title.x=element_blank(),
+        #element_text(size=15),
+        axis.text.y=element_text(size=12),
+        #axis.ticks.x=element_blank(),
+        axis.title.y=element_text(size=15),
+        legend.position = "none")
+```
+#greatest weekly and monthly change in temperature is the same date range as the 24 hour period 
