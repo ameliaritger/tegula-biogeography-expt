@@ -186,12 +186,12 @@ ggplot(bml_check, aes(x=date_time, y=value, group=data)) +
 #ggsave(here("figures", "bml_pH_temp_tide.png"), height=20, width=40, units="cm")
 ```
 
-### Remove measurements where the sensor was out of the water (initially a tide lower than -0.5, but the "heatwave" on 6/15/21 shows how the temperature spikes disappear after filtering for tide of 0.2)
+### ID measurements where the sensor was out of the water (initially a tide lower than -0.5, but the "heatwave" on 6/15/21 shows how the temperature spikes disappear after filtering for tide of 0.2)
 ```{r}
 bml_detide <- bml_auto %>%
   mutate(tide_height=tide,
          tide=ifelse(tide_height>=0.21, "high", "low")) %>%
-  filter(tide=="high") %>%
+  #filter(tide=="high") %>%
   drop_na(c(p_h)) #drop observations that don't overlap (10 min vs 15 min sampling interval)
   
 ggplot(bml_detide, aes(x=date_time)) +
@@ -216,12 +216,6 @@ p <- bml_detide %>%
 
 ggplotly(p)
 ```
-
-(!(date_time >= ymd_hms("2021-07-10 06:00:00") & date_time <= ymd_hms("2021-07-10 07:30:00")),
-         !(date_time >= ymd_hms("2021-07-21 06:15:00") & date_time <= ymd_hms("2021-07-21 07:15:00")),
-         !(date_time >= ymd_hms("2021-07-22 06:15:00") & date_time <= ymd_hms("2021-07-22 08:00:00")),
-         !(date_time >= ymd_hms("2021-10-10 17:45:00")),
-         !(date_time >= ymd_hms("2021-07-23 07:15:00") & date_time <= ymd_hms("2021-07-23 08:30:00")))
          
 ### Check anomalous points for BML with highchart
 ```{r}
