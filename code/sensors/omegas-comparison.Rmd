@@ -1,0 +1,104 @@
+---
+title: "omegas_comparison"
+author: "Amelia Ritger"
+date: "1/14/2022"
+output: html_document
+---
+
+# Load packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      messages = FALSE, 
+                      error = FALSE,
+                      warning = FALSE)
+
+library(tidyverse)
+library(janitor)
+library(here)
+library(lubridate)
+library(scales) #for plotting time series data
+library(gt) #for making nice saveable tables
+```
+
+# Read in the data
+```{r}
+amelia <- read_csv(here("data","sensors", "ph_clean_final.csv")) %>%
+  filter(tide=="high") %>%
+  filter(!site=="Alegria") %>%
+  select(site, date_time, p_h, temp_c) %>%
+  mutate(method="amelia")
+
+omegas <- read_csv(here("data","sensors", "omegas", "OMEGAS_data.csv")) %>%
+  clean_names() %>%
+  mutate(site=ifelse(site=="Bodega_Head_State_Marine_Reserve_ILTERS", "Bodega Bay", "Lompoc Landing")) %>%
+  rename(date_time=iso_date_time_utc,
+         temp_c=gifet_t,
+         p_h=gifet_p_h) %>%
+  select(site, date_time, p_h, temp_c) %>%
+  mutate(method="omegas") %>%
+  filter(p_h>0)
+
+compare <- full_join(amelia, omegas) %>%
+  mutate(year=year(date_time))
+```
+
+# Create table comparing mean/min/max across years
+```{r}
+compare_year <- compare %>%
+  group_by(site, year) %>%
+  summarize("Mean temp"=mean(temp_c),
+            "Min temp"=min(temp_c),
+            "Max temp"=max(temp_c),
+            "Mean pH"=mean(p_h), 
+            "Min pH"=min(p_h),
+            "Max pH"=max(p_h)) %>%
+  ungroup()
+
+compare_year %>%
+  gt(groupname_col = "site") %>%
+  fmt_number(columns=3:8,
+             decimals=2) %>%
+  cols_align("left", site) %>%
+   cols_label(
+    year=""
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "lightcyan")),
+    locations = cells_body(columns = 3:5)) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "lightyellow")),
+    locations = cells_body(columns = 6:8)
+  ) %>%
+  gtsave(here("figures", "sensors", "omegas-vs-amelia_table.png"))
+```
+
+#Create df to compare data across years
+```{r}
+compare_jd <- compare %>%
+  mutate(julian = yday(date_time),
+         year = as.factor(year),
+         date=date(date_time))
+
+all_days = data.frame(date = seq.Date(from = min(compare_jd$date), to = max(compare_jd$date), by="day"))
+
+compare_missing <- left_join(all_days, compare_jd, by = "date") %>%
+  filter(!year=="NA")
+```
+
+#Plot up comparison of data across years
+```{r}
+ggplot(compare, aes(x=date_time, y=p_h, group=as.factor(year))) +
+  geom_line(aes(color=as.factor(year)), size=1, alpha=0.5) +
+  facet_wrap(~site)
+
+ggplot(compare_missing, aes(x=julian, y=p_h, group=year)) +
+  geom_point(aes(color=year), size=0.5, alpha=0.1) +
+  geom_smooth(aes(color=year), method="loess", span=0.2) + #span 0.3 looks similar to method="gam"
+  facet_wrap(~site) +
+  xlab("Julian Date") +
+  ylab("pH")
+
+ggsave(here("figures", "sensors", "omegas-vs-amelia.png"), height=20, width=40, units="cm")
+```
