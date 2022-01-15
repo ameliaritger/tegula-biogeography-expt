@@ -1255,3 +1255,38 @@ write.csv(lol_cycle, here("data", "sensors", "lol_all_final.csv"), row.names = F
 
 Next steps:
 Am I still overfiltering LOL data? Should I lower it to 2.0 tide?
+
+## Harley and Helmuth filtering - 3C over 20 minutes (9/4C over 15 minutes)
+```{r}
+# Try it for BML
+
+#Identify points where temperature drop was at least 3C over 20 minutes
+bml_hh <- bml_auto %>%
+  mutate(tide_height=tide,
+         diff=lag(temp_c, default = first(temp_c))-temp_c,
+         im_event=ifelse(lag(temp_c, default = first(temp_c))-temp_c>=(9/4), "post-event", "null"),
+         im_event_real=ifelse(lead(im_event)=="post-event", "event", "nope"))
+
+ggplot(bml_hh, aes(x=date_time, y=temp_c)) +
+  geom_point(aes(color=im_event_real), size=1) +
+  geom_line(alpha=0.3)
+                
+# Add in wave height
+bml_wave <- read_csv(here("data","sensors", "wave-bml2021.csv")) %>% 
+  clean_names() %>%
+  filter(wvht<99.00) %>%
+  mutate(mm_2=mm_2+5) %>%
+  unite("date", "number_yy", "mm", "dd", sep="/") %>%
+  unite("time", "hh", "mm_2", sep=":") %>%
+  unite("date_time", "date", "time", sep=" ") %>%
+  mutate(date_time=ymd_hm(date_time)) %>% #apply lubridate to date and time
+  select(date_time, wvht)
+
+bml_hh_wvht <- full_join(bml_wave, bml_hh) %>%
+  fill(wvht, .direction = "updown") %>% #fill in empty wave measurements with previous values before
+  #distinct(date_time, .keep_all = TRUE) %>% #remove duplicated data (not sure where those came from)
+  filter(!is.na(p_h)) #create df without NA values
+
+##whoops, these wave height data are from 2020...let's check it manually?
+```
+
