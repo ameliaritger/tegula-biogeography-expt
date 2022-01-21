@@ -351,7 +351,7 @@ highchart() %>%
 #Join pH, temp data with tide data
 lol_all <- full_join(lol_all_1, lol_tide) %>%
   drop_na(c(tide, p_h)) %>% #remove unnecessary tide values
-  rename(temp_c=temp_hobo_c)
+  mutate(temp_c=temp_hobo_c)
 ```
 
 ### Check if anomalous points in durafet vs hobo are due to tide cycle?
@@ -1285,10 +1285,11 @@ wave_function <- function(station_code, input_month){
                                            ifelse(input_month==9, "Sep/",
                                                   ifelse(input_month=="a", "Oct/", "Nov/"))))))
   
-  wave_data <- read_delim(paste0("https://www.ndbc.noaa.gov/view_text_file.php?filename=", station_code, input_month, "2021.txt.gz&dir=data/stdmet/", month_str), delim = "\ ", col_types="n") %>%
-    slice(-1) %>%
+  wave_data <- read.delim(paste0("https://www.ndbc.noaa.gov/view_text_file.php?filename=", station_code, input_month, "2021.txt.gz&dir=data/stdmet/", month_str), sep = "") %>%
+  slice(-1) %>%
+  mutate(across(where(is.character), as.numeric)) %>%
     clean_names() %>%
-    select(1:5, 10) %>%
+    select(1:5, 9) %>%
     rename(year = 1,
            month = 2,
            day = 3,
@@ -1296,20 +1297,38 @@ wave_function <- function(station_code, input_month){
            min = 5,
            wvht = 6) %>%
     filter(wvht<99.00) %>%
-    mutate_all(funs(as.numeric(as.numeric(.)))) %>%
-    mutate(min=min+4,
-           hr=ifelse(min==60, hr+1, hr),
-           min=ifelse(min==60, "00", min)) %>%
+    #mutate_all(funs(as.numeric(as.numeric(.)))) %>%
+    mutate(minute_else=ifelse((min+4) %% 10 == 0, min+4, min-10), #if min+4 is divisible by 10, add 4 (if not, subtract 10)
+           hr=ifelse(minute_else==60, hr+1, hr), #if minute = 60, add 1 hour
+           minute_zero=ifelse(minute_else==60, "00", minute_else)) %>% #if minute = 60, set minutes to 00
     unite("date", "year", "month", "day", sep="/") %>%
-    unite("time", "hr", "min", sep=":") %>%
+    unite("time", "hr", "minute_zero", sep=":") %>%
     unite("date_time", "date", "time", sep=" ") %>%
     mutate(date_time=lubridate::ymd_hm(date_time)) %>%
     mutate(station=ifelse(station_code==46214, "Bodega Bay", 
                           ifelse(station_code==46011, "Lompoc Landing", "Alegria")))
 }
 
+
+# mutate(across(where(is.character), as.numeric)) %>%
+#     clean_names() %>%
+#     select(1:5, 9) %>%
+#     rename(year = 1,
+#            month = 2,
+#            day = 3,
+#            hr = 4,
+#            min = 5,
+#            wvht = 6) %>%
+#     filter(wvht<99.00) %>%
+#     mutate(test=ifelse(year==2021, min+4, 3),
+#            hr=ifelse(test==60, hr+1, hr),
+#            minute_new=ifelse(test==60, "00", test)) %>%
+#   
+  
 #check to make sure function works
-does_it_work <- wave_function(46214, 9)
+does_it_work_lol <- wave_function(46011, 6)
+does_it_work_bml <- wave_function(46214, 6)
+does_it_work_alg <- wave_function(46054, 6)
 ```
 
 #loop to download wave height data
@@ -1401,9 +1420,62 @@ Well, this doesn't make much sense. There isn't a clear waveheight that I can fi
 
 So let's try it now for LOL...
 
-## LOL
+## for LOL
 ```{r}
+#Identify points where temperature drop was at least 3C over 20 minutes
+lol_hh <- lol_detide %>%
+  arrange(date_time) %>%
+  mutate(diff=temp_c-lag(temp_c, default = first(temp_c)), #find difference between temp now and temp before
+         im_event=ifelse(diff<=(-9/4), #identify immersion events
+                         ifelse(is.na(temp_hobo_c==TRUE),"no_3C_drop", "3C+drop"), "no_3C_drop")) #ignore times where temp drop was bc switching from hobo to durafet
 
+# Add in wave height
+lol_wave <- read_csv(here("data","sensors", "wave_data_2021.csv")) %>%
+  filter(station=="LOL")
+
+lol_hh_wvht <- full_join(lol_wave, lol_hh) %>%
+  arrange(date_time) %>% #make sure observations are in order by date/time
+  fill(wvht, .direction = "down") %>% #fill in empty wave measurements with previous values before
+  filter(!is.na(p_h)) %>% #create df without NA values (i.e. where wave data doesn't also have sensor data)
+  select(site, date_time, time, temp_c, p_h, tide_height, wvht, diff, im_event) #only keep columns of interest
+  #filter(date_time <= ymd_hms("2021-06-14 01:00:00"),
+         #date_time >= ymd_hms("2021-06-12 01:00:00"))
+
+#check to make sure no crazy wvht frequencies
+lol_wave_sum <- lol_hh_wvht %>%
+  group_by(wvht) %>%
+  summarize(n=n())
+
+#plot frequencies
+ggplot(lol_wave_sum, aes(x=wvht)) +
+  geom_histogram()
+
+#plot up basic waveheight, temp 
+ggplot(lol_hh_wvht, aes(x=date_time)) +
+  geom_point(aes(y=temp_c, color=im_event), size=1) +
+  geom_point(aes(y=wvht, color=im_event), size=0.5)
+
+#consider tides, time of day...
+lol_hh_wvht_tide <- lol_hh_wvht %>%
+    mutate(time_lub=hms(time)) %>% #apply lubridate to time
+  filter(tide_height>=2.0, #remove tides I know are too low
+         tide_height<=4.0) %>% #remove tides I know are too high
+  filter(hour(time_lub)>04, #remove times before sunrise
+         hour(time_lub)>09, #only look at hottest part of day...
+         hour(time_lub)<17, #only look at hottest part of day...
+         hour(time_lub)<21) #remove times after sunset
+
+#plot up waveheight and temp
+ggplot(lol_hh_wvht_tide, aes(x=date_time)) +
+  geom_point(aes(y=temp_c, color=im_event), size=1) +
+  geom_point(aes(y=wvht, color=im_event), size=0.5) +
+  geom_vline(aes(xintercept=date_time),
+             data=. %>%
+               filter(im_event=="3C+drop"))
+
+#plot up wvht against tide height 
+ggplot(bml_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
+  geom_point(aes(color=im_event))
 ```
 
 
