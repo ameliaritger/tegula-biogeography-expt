@@ -1256,7 +1256,7 @@ write.csv(lol_cycle, here("data", "sensors", "lol_all_final.csv"), row.names = F
 Next steps:
 Am I still overfiltering LOL data? Should I lower it to 2.0 tide?
 
-## Harley and Helmuth filtering - 3C over 20 minutes (9/4C over 15 minutes)
+# Harley and Helmuth filtering - 3C over 20 minutes (9/4C over 15 minutes)
 ```{r}
 # Try it for BML
 
@@ -1288,5 +1288,81 @@ bml_hh_wvht <- full_join(bml_wave, bml_hh) %>%
   filter(!is.na(p_h)) #create df without NA values
 
 ##whoops, these wave height data are from 2020...let's check it manually?
+```
+
+#Collect wave data
+## Standard format: 
+## "https://www.ndbc.noaa.gov/view_text_file.php?filename=XXXXXXXXXX.txt.gz&dir=data/stdmet/XXX/"
+
+## BML: Station 46214 - Point Reyes, CA (029)
+### June: 4621462021   /Jun/
+### July: 4621472021   /Jul/
+
+## LOL: Station 46011 (LLNR 215) - SANTA MARIA
+### June: 4601162021  /Jun/
+### July: 4601172021  /Jul/
+
+## ALG: Station 46054 (LLNR 198.1) - WEST SANTA BARBARA
+### June: 4605462021  /Jun/
+### July: 4605472021 /Jul/
+
+```{r}
+wave_function <- function(station_code, input_month){
+  month_str <- ifelse(input_month==5, "May/", 
+                      ifelse(input_month==6, "Jun/",
+                             ifelse(input_month==7, "Jul/",
+                                    ifelse(input_month==8, "Aug/",
+                                           ifelse(input_month==9, "Sep/",
+                                                  ifelse(input_month=="a", "Oct/", "Nov/"))))))
+  
+  wave_data <- read_delim(paste0("https://www.ndbc.noaa.gov/view_text_file.php?filename=", station_code, input_month, "2021.txt.gz&dir=data/stdmet/", month_str), delim = "\ ", col_types="n") %>%
+    slice(-1) %>%
+    clean_names() %>%
+    select(1:5, 10) %>%
+    rename(year = 1,
+           month = 2,
+           day = 3,
+           hr = 4,
+           min = 5,
+           wvht = 6) %>%
+    filter(wvht<99.00) %>%
+    mutate_all(funs(as.numeric(as.numeric(.)))) %>%
+    mutate(min=min+4,
+           hr=ifelse(min==60, hr+1, hr),
+           min=ifelse(min==60, "00", min)) %>%
+    unite("date", "year", "month", "day", sep="/") %>%
+    unite("time", "hr", "min", sep=":") %>%
+    unite("date_time", "date", "time", sep=" ") %>%
+    mutate(date_time=lubridate::ymd_hm(date_time)) %>%
+    mutate(station=ifelse(station_code==46214, "BML", 
+                          ifelse(station_code==46011, "LOL", "ALG")))
+}
+
+#check to make sure function works
+does_it_work <- wave_function(46214, 9)
+```
+
+```{r}
+heres_a_list <- list(list()) #create empty list
+
+stations <- c(46214, 46011, 46054) #identify stations of interest
+months <- c(seq(5, 9, by=1), "a", "b") #identify months of interest (a and b are oct/nov)
+
+for(i in seq_along(stations)){
+  for(j in seq_along(months)){
+  #loop for a single station across months
+  wave_data <- wave_function(stations[i], months[j]) #run wave_function
+  heres_a_list[[j]] <- wave_data #add the results of wave_function to a list
+  print(j) #confirm it worked
+  }
+  #loop across stations
+  df_loop <- do.call(rbind.data.frame, heres_a_list) #turn j loop into dataframe
+  datafile <- read_csv(here("data", "sensors", "wave_data_2021.csv")) #read in shell datafile (to be constantly updated - this should start off as a blank df with only headers, unless you want to add new data)
+  out = rbind(datafile, df_loop) #merge j loop df with shell datafile
+  write.csv(out, here("data", "sensors", "wave_data_2021.csv"), row.names = FALSE) #overwrite shell datafile
+  print(i) #confirm it worked
+}
+
+wave_data <- read_csv(here("data", "sensors", "wave_data_2021.csv"))
 ```
 
