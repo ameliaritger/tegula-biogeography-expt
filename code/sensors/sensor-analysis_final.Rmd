@@ -1256,41 +1256,10 @@ write.csv(lol_cycle, here("data", "sensors", "lol_all_final.csv"), row.names = F
 Next steps:
 Am I still overfiltering LOL data? Should I lower it to 2.0 tide?
 
+
 # Harley and Helmuth filtering - 3C over 20 minutes (9/4C over 15 minutes)
-```{r}
-# Try it for BML
+# Collect wave data
 
-#Identify points where temperature drop was at least 3C over 20 minutes
-bml_hh <- bml_auto %>%
-  mutate(tide_height=tide,
-         diff=lag(temp_c, default = first(temp_c))-temp_c,
-         im_event=ifelse(lag(temp_c, default = first(temp_c))-temp_c>=(9/4), "post-event", "null"),
-         im_event_real=ifelse(lead(im_event)=="post-event", "event", "nope"))
-
-ggplot(bml_hh, aes(x=date_time, y=temp_c)) +
-  geom_point(aes(color=im_event_real), size=1) +
-  geom_line(alpha=0.3)
-                
-# Add in wave height
-bml_wave <- read_csv(here("data","sensors", "wave-bml2021.csv")) %>% 
-  clean_names() %>%
-  filter(wvht<99.00) %>%
-  mutate(mm_2=mm_2+5) %>%
-  unite("date", "number_yy", "mm", "dd", sep="/") %>%
-  unite("time", "hh", "mm_2", sep=":") %>%
-  unite("date_time", "date", "time", sep=" ") %>%
-  mutate(date_time=ymd_hm(date_time)) %>% #apply lubridate to date and time
-  select(date_time, wvht)
-
-bml_hh_wvht <- full_join(bml_wave, bml_hh) %>%
-  fill(wvht, .direction = "updown") %>% #fill in empty wave measurements with previous values before
-  #distinct(date_time, .keep_all = TRUE) %>% #remove duplicated data (not sure where those came from)
-  filter(!is.na(p_h)) #create df without NA values
-
-##whoops, these wave height data are from 2020...let's check it manually?
-```
-
-#Collect wave data
 ## Standard format: 
 ## "https://www.ndbc.noaa.gov/view_text_file.php?filename=XXXXXXXXXX.txt.gz&dir=data/stdmet/XXX/"
 
@@ -1306,6 +1275,7 @@ bml_hh_wvht <- full_join(bml_wave, bml_hh) %>%
 ### June: 4605462021  /Jun/
 ### July: 4605472021 /Jul/
 
+#function to download wave height data
 ```{r}
 wave_function <- function(station_code, input_month){
   month_str <- ifelse(input_month==5, "May/", 
@@ -1334,14 +1304,15 @@ wave_function <- function(station_code, input_month){
     unite("time", "hr", "min", sep=":") %>%
     unite("date_time", "date", "time", sep=" ") %>%
     mutate(date_time=lubridate::ymd_hm(date_time)) %>%
-    mutate(station=ifelse(station_code==46214, "BML", 
-                          ifelse(station_code==46011, "LOL", "ALG")))
+    mutate(station=ifelse(station_code==46214, "Bodega Bay", 
+                          ifelse(station_code==46011, "Lompoc Landing", "Alegria")))
 }
 
 #check to make sure function works
 does_it_work <- wave_function(46214, 9)
 ```
 
+#loop to download wave height data
 ```{r}
 heres_a_list <- list(list()) #create empty list
 
@@ -1355,6 +1326,7 @@ for(i in seq_along(stations)){
   heres_a_list[[j]] <- wave_data #add the results of wave_function to a list
   print(j) #confirm it worked
   }
+  
   #loop across stations
   df_loop <- do.call(rbind.data.frame, heres_a_list) #turn j loop into dataframe
   datafile <- read_csv(here("data", "sensors", "wave_data_2021.csv")) #read in shell datafile (to be constantly updated - this should start off as a blank df with only headers, unless you want to add new data)
@@ -1365,4 +1337,73 @@ for(i in seq_along(stations)){
 
 wave_data <- read_csv(here("data", "sensors", "wave_data_2021.csv"))
 ```
+
+#Add in wave height 
+
+## for BML
+```{r}
+#Identify points where temperature drop was at least 3C over 20 minutes
+bml_hh <- bml_auto %>%
+  arrange(date_time) %>%
+  mutate(tide_height=tide,
+         diff=temp_c-lag(temp_c, default = first(temp_c)), #find difference between temp now and temp before
+         im_event=ifelse(diff<=(-9/4), #identify immersion events
+                         ifelse(is.na(temp_hobo_c==TRUE),"no_3C_drop", "3C+drop"), "no_3C_drop")) #ignore times where temp drop was bc switching from hobo to durafet
+
+# Add in wave height
+bml_wave <- read_csv(here("data","sensors", "wave_data_2021.csv")) %>%
+  filter(station=="BML")
+
+bml_wave_sum <- bml_wave %>%
+  group_by(wvht) %>%
+  summarize(n=n())
+  
+bml_hh_wvht <- full_join(bml_wave, bml_hh) %>%
+  arrange(date_time) %>% #make sure observations are in order by date/time
+  fill(wvht, .direction = "down") %>% #fill in empty wave measurements with previous values before
+  filter(!is.na(p_h)) %>% #create df without NA values (i.e. where wave data doesn't also have sensor data)
+  select(site, date_time, time, temp_c, p_h, tide_height, wvht, diff, im_event) #only keep columns of interest
+  #filter(date_time <= ymd_hms("2021-06-14 01:00:00"),
+         #date_time >= ymd_hms("2021-06-12 01:00:00"))
+
+#check to make sure no obvious errors in df
+bml_hh_wvht_sum <- bml_hh_wvht %>%
+  group_by(wvht) %>%
+  summarize(n=n())
+
+ggplot(bml_hh_wvht, aes(x=wvht)) +
+  geom_histogram()
+
+#plot up waveheight and temp
+ggplot(bml_hh_wvht_tide, aes(x=date_time)) +
+  geom_point(aes(y=temp_c, color=im_event), size=1) +
+  geom_point(aes(y=wvht, color=im_event), size=0.5) +
+  geom_vline(aes(xintercept=date_time),
+             data=. %>%
+               filter(im_event=="3C+drop"))
+
+#consider tides, time of day...
+bml_hh_wvht_tide <- bml_hh_wvht %>%
+    mutate(time_lub=hms(time)) %>% #apply lubridate to time
+  filter(tide_height>=-0.1, #remove tides I know are too low
+         tide_height<=0.5) %>% #remove tides I know are too high
+  filter(hour(time_lub)>04, #remove times before sunrise
+         hour(time_lub)>09, #only look at hottest part of day...
+         hour(time_lub)<17, #only look at hottest part of day...
+         hour(time_lub)<21) #remove times after sunset
+
+#plot up wvht against tide height 
+ggplot(bml_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
+  geom_point(aes(color=im_event))
+```
+ 
+Well, this doesn't make much sense. There isn't a clear waveheight that I can filter, given there are only 4 instances of 3C drops in the middle of the day (between 10am and 5pm) when the tide was going out/coming in (between -0.1 and 0.5). 
+
+So let's try it now for LOL...
+
+## LOL
+```{r}
+
+```
+
 
