@@ -1371,7 +1371,7 @@ bml_hh <- bml_auto %>%
 
 # Add in wave height
 bml_wave <- read_csv(here("data","sensors", "wave_data_2021.csv")) %>%
-  filter(station=="BML")
+  filter(station=="Bodega Bay")
 
 bml_wave_sum <- bml_wave %>%
   group_by(wvht) %>%
@@ -1393,14 +1393,6 @@ bml_hh_wvht_sum <- bml_hh_wvht %>%
 ggplot(bml_hh_wvht, aes(x=wvht)) +
   geom_histogram()
 
-#plot up waveheight and temp
-ggplot(bml_hh_wvht_tide, aes(x=date_time)) +
-  geom_point(aes(y=temp_c, color=im_event), size=1) +
-  geom_point(aes(y=wvht, color=im_event), size=0.5) +
-  geom_vline(aes(xintercept=date_time),
-             data=. %>%
-               filter(im_event=="3C+drop"))
-
 #consider tides, time of day...
 bml_hh_wvht_tide <- bml_hh_wvht %>%
     mutate(time_lub=hms(time)) %>% #apply lubridate to time
@@ -1410,6 +1402,14 @@ bml_hh_wvht_tide <- bml_hh_wvht %>%
          hour(time_lub)>09, #only look at hottest part of day...
          hour(time_lub)<17, #only look at hottest part of day...
          hour(time_lub)<21) #remove times after sunset
+
+#plot up waveheight and temp
+ggplot(bml_hh_wvht_tide, aes(x=date_time)) +
+  geom_point(aes(y=temp_c, color=im_event), size=1) +
+  geom_point(aes(y=wvht, color=im_event), size=0.5) +
+  geom_vline(aes(xintercept=date_time),
+             data=. %>%
+               filter(im_event=="3C+drop"))
 
 #plot up wvht against tide height 
 ggplot(bml_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
@@ -1431,7 +1431,7 @@ lol_hh <- lol_detide %>%
 
 # Add in wave height
 lol_wave <- read_csv(here("data","sensors", "wave_data_2021.csv")) %>%
-  filter(station=="LOL")
+  filter(station=="Lompoc Landing")
 
 lol_hh_wvht <- full_join(lol_wave, lol_hh) %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
@@ -1457,13 +1457,14 @@ ggplot(lol_hh_wvht, aes(x=date_time)) +
 
 #consider tides, time of day...
 lol_hh_wvht_tide <- lol_hh_wvht %>%
-    mutate(time_lub=hms(time)) %>% #apply lubridate to time
+  mutate(time_lub=hms(time)) %>% #apply lubridate to time
   filter(tide_height>=2.0, #remove tides I know are too low
-         tide_height<=4.0) %>% #remove tides I know are too high
+         tide_height<=3.5) %>% #remove tides I know are too high
   filter(hour(time_lub)>04, #remove times before sunrise
-         hour(time_lub)>09, #only look at hottest part of day...
-         hour(time_lub)<17, #only look at hottest part of day...
-         hour(time_lub)<21) #remove times after sunset
+         #hour(time_lub)>09, #only look at hottest part of day...
+         #hour(time_lub)<17, #only look at hottest part of day...
+         hour(time_lub)<21) %>% #remove times after sunset
+  mutate(tod=ifelse(hour(time_lub)>09 & hour(time_lub)<17, "midday", "cooler"))
 
 #plot up waveheight and temp
 ggplot(lol_hh_wvht_tide, aes(x=date_time)) +
@@ -1473,9 +1474,13 @@ ggplot(lol_hh_wvht_tide, aes(x=date_time)) +
              data=. %>%
                filter(im_event=="3C+drop"))
 
+lol_hh_wvht_tide$im_event <- factor(lol_hh_wvht_tide$im_event, levels=c("no_3C_drop", "3C+drop"))
+
 #plot up wvht against tide height 
-ggplot(bml_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
-  geom_point(aes(color=im_event))
+ggplot(lol_hh_wvht_tide, aes(x=wvht, y=tide_height)) +
+  geom_point(aes(color=tod, size=im_event)) +
+  geom_point(data=lol_hh_wvht_tide[lol_hh_wvht_tide$im_event=="3C+drop",],
+             pch=21, fill=NA, size=4, colour="black", stroke=1)
 ```
 
-
+When tide is above 3.0, 3C drops are exclusively midday
