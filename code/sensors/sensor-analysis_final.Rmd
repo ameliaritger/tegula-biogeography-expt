@@ -1484,3 +1484,61 @@ ggplot(lol_hh_wvht_tide, aes(x=wvht, y=tide_height)) +
 ```
 
 When tide is above 3.0, 3C drops are exclusively midday
+
+
+## for ALG
+```{r}
+#Identify points where temperature drop was at least 3C over 20 minutes
+alg_hh <- alg_desand %>%
+  arrange(date_time) %>%
+  mutate(diff=temp_c-lag(temp_c, default = first(temp_c)), #find difference between temp now and temp before
+         im_event=ifelse(diff<=(-9/4), #identify immersion events
+                         ifelse(is.na(temp_hobo_c==TRUE),"no_3C_drop", "3C+drop"), "no_3C_drop")) #ignore times where temp drop was bc switching from hobo to durafet
+
+# Add in wave height
+alg_wave <- read_csv(here("data","sensors", "wave_data_2021.csv")) %>%
+  filter(station=="Alegria")
+
+alg_hh_wvht <- full_join(alg_wave, alg_hh) %>%
+  rename(tide_height=tide) %>%
+  arrange(date_time) %>% #make sure observations are in order by date/time
+  fill(wvht, .direction = "down") %>% #fill in empty wave measurements with previous values before
+  filter(!is.na(p_h)) %>% #create df without NA values (i.e. where wave data doesn't also have sensor data)
+  select(site, date_time, time, temp_c, p_h, tide_height, wvht, diff, im_event) #only keep columns of interest
+
+#check to make sure no crazy wvht frequencies
+alg_wave_sum <- alg_hh_wvht %>%
+  group_by(wvht) %>%
+  summarize(n=n())
+
+#plot frequencies
+ggplot(alg_wave_sum, aes(x=wvht)) +
+  geom_histogram()
+
+#plot up basic waveheight, temp 
+ggplot(alg_hh_wvht, aes(x=date_time)) +
+  geom_point(aes(y=temp_c), size=1) +
+  geom_point(aes(y=wvht), size=0.5)
+
+#consider tides, time of day...
+lol_hh_wvht_tide <- lol_hh_wvht %>%
+  mutate(time_lub=hms(time)) %>% #apply lubridate to time
+  filter(tide_height>=-0.5, #remove tides I know are too low
+         tide_height<=1.5) %>% #remove tides I know are too high
+  filter(hour(time_lub)>04, #remove times before sunrise
+         #hour(time_lub)>09, #only look at hottest part of day...
+         #hour(time_lub)<17, #only look at hottest part of day...
+         hour(time_lub)<21) %>% #remove times after sunset
+  mutate(tod=ifelse(hour(time_lub)>09 & hour(time_lub)<17, "midday", "cooler"))
+
+#plot up waveheight and temp
+ggplot(lol_hh_wvht_tide, aes(x=date_time)) +
+  geom_point(aes(y=temp_c, color=tod), size=1) +
+  geom_point(aes(y=wvht, color=tod), size=0.5)
+ 
+#plot up wvht against tide height 
+ggplot(lol_hh_wvht_tide, aes(x=wvht, y=tide_height)) +
+  geom_point(aes(color=tod))
+```
+
+No 3C drops at Alegria - not surprising, since sensor was never disconnected from ocean?
