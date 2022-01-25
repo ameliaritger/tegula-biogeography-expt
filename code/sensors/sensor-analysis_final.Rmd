@@ -1399,9 +1399,11 @@ bml_hh_wvht_tide <- bml_hh_wvht %>%
   filter(tide_height>=-0.1, #remove tides I know are too low
          tide_height<=0.5) %>% #remove tides I know are too high
   filter(hour(time_lub)>04, #remove times before sunrise
-         hour(time_lub)>09, #only look at hottest part of day...
-         hour(time_lub)<17, #only look at hottest part of day...
-         hour(time_lub)<21) #remove times after sunset
+         #hour(time_lub)>09, #only look at hottest part of day...
+         #hour(time_lub)<17, #only look at hottest part of day...
+         hour(time_lub)<21) %>% #remove times after sunset
+    mutate(tod=ifelse(hour(time_lub)>09 & hour(time_lub)<17, "midday", "crepuscular"))
+
 
 #plot up waveheight and temp
 ggplot(bml_hh_wvht_tide, aes(x=date_time)) +
@@ -1411,9 +1413,17 @@ ggplot(bml_hh_wvht_tide, aes(x=date_time)) +
              data=. %>%
                filter(im_event=="3C+drop"))
 
+bml_hh_wvht_tide$im_event <- factor(bml_hh_wvht_tide$im_event, levels=c("no_3C_drop", "3C+drop"))
+
 #plot up wvht against tide height 
 ggplot(bml_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
-  geom_point(aes(color=im_event))
+  geom_point(aes(color=tod, size=im_event)) +
+  geom_point(data=bml_hh_wvht_tide[bml_hh_wvht_tide$im_event=="3C+drop",],
+             pch=21, fill=NA, size=5, colour="black", stroke=1) +
+  guides(size = FALSE) +
+  labs(x = "wave height", y = "tide height", color = "time of day")
+
+ggsave(here("figures", "wave-bml.png"), height=20, width=30, units="cm")
 ```
  
 Well, this doesn't make much sense. There isn't a clear waveheight that I can filter, given there are only 4 instances of 3C drops in the middle of the day (between 10am and 5pm) when the tide was going out/coming in (between -0.1 and 0.5). 
@@ -1464,7 +1474,8 @@ lol_hh_wvht_tide <- lol_hh_wvht %>%
          #hour(time_lub)>09, #only look at hottest part of day...
          #hour(time_lub)<17, #only look at hottest part of day...
          hour(time_lub)<21) %>% #remove times after sunset
-  mutate(tod=ifelse(hour(time_lub)>09 & hour(time_lub)<17, "midday", "cooler"))
+  mutate(tod=ifelse(hour(time_lub)>09 & hour(time_lub)<17, "midday", "crepuscular")) %>%
+  filter(wvht<3.5)
 
 #plot up waveheight and temp
 ggplot(lol_hh_wvht_tide, aes(x=date_time)) +
@@ -1477,10 +1488,14 @@ ggplot(lol_hh_wvht_tide, aes(x=date_time)) +
 lol_hh_wvht_tide$im_event <- factor(lol_hh_wvht_tide$im_event, levels=c("no_3C_drop", "3C+drop"))
 
 #plot up wvht against tide height 
-ggplot(lol_hh_wvht_tide, aes(x=wvht, y=tide_height)) +
+ggplot(lol_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
   geom_point(aes(color=tod, size=im_event)) +
   geom_point(data=lol_hh_wvht_tide[lol_hh_wvht_tide$im_event=="3C+drop",],
-             pch=21, fill=NA, size=4, colour="black", stroke=1)
+             pch=21, fill=NA, size=5, colour="black", stroke=1) +
+  guides(size = FALSE) +
+  labs(x = "wave height", y = "tide height", color = "time of day")
+
+ggsave(here("figures", "wave-lol.png"), height=20, width=30, units="cm")
 ```
 
 When tide is above 3.0, 3C drops are exclusively midday
