@@ -1434,6 +1434,7 @@ So let's try it now for LOL...
 ```{r}
 #Identify points where temperature drop was at least 3C over 20 minutes
 lol_hh <- lol_detide %>%
+  filter(date_time<ymd_hms("2021-10-08 18:15:00")) %>% #remove last data point, bc weird temp drop
   arrange(date_time) %>%
   mutate(diff=temp_c-lag(temp_c, default = first(temp_c)), #find difference between temp now and temp before
          im_event=ifelse(diff<=(-9/4), #identify immersion events
@@ -1468,14 +1469,14 @@ ggplot(lol_hh_wvht, aes(x=date_time)) +
 #consider tides, time of day...
 lol_hh_wvht_tide <- lol_hh_wvht %>%
   mutate(time_lub=hms(time)) %>% #apply lubridate to time
-  filter(tide_height>=2.0, #remove tides I know are too low
+  filter(tide_height>=1.4, #remove tides I know are too low
          tide_height<=3.5) %>% #remove tides I know are too high
   filter(hour(time_lub)>04, #remove times before sunrise
          #hour(time_lub)>09, #only look at hottest part of day...
          #hour(time_lub)<17, #only look at hottest part of day...
          hour(time_lub)<21) %>% #remove times after sunset
-  mutate(tod=ifelse(hour(time_lub)>09 & hour(time_lub)<17, "midday", "crepuscular")) %>%
-  filter(wvht<3.5)
+  mutate(tod=ifelse(hour(time_lub)>09 & hour(time_lub)<17, "midday", "crepuscular")) #%>%
+  #filter(wvht<3.5)
 
 #plot up waveheight and temp
 ggplot(lol_hh_wvht_tide, aes(x=date_time)) +
@@ -1495,10 +1496,58 @@ ggplot(lol_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
   guides(size = FALSE) +
   labs(x = "wave height", y = "tide height", color = "time of day")
 
-ggsave(here("figures", "wave-lol.png"), height=20, width=30, units="cm")
+ggsave(here("figures", "wave-lol_1.4.png"), height=20, width=30, units="cm")
+```
+When tide is above 3.0, 3C drops are exclusively midday
+
+### Try it with ALL obvious temperature drops, to ID wave heights and tide heights of interest
+```{r}
+lol_wvht_exp <- lol_hh_wvht %>%
+  arrange(date_time) %>%
+  mutate(im_event_2c=ifelse(diff<=(-3/2), #identify immersion events
+                         ifelse(is.na(temp_c==TRUE),"no_C_drop", "C_drop"), "no_C_drop"),
+         im_event_1c=ifelse(diff<=(-3/4), #identify immersion events
+                         ifelse(is.na(temp_c==TRUE),"no_C_drop", "C_drop"), "no_C_drop"),
+         im_event_0.8c=ifelse(diff<=(-0.6), #identify immersion events
+                         ifelse(is.na(temp_c==TRUE),"no_C_drop", "C_drop"), "no_C_drop"),
+         im_event_0.6c=ifelse(diff<=(-0.45), #identify immersion events
+                         ifelse(is.na(temp_c==TRUE),"no_C_drop", "C_drop"), "no_C_drop")) %>% #ignore times where temp drop was bc switching from hobo to durafet
+  #filter(date_time <= ymd_hms("2021-11-10 19:00:00"),
+  #       date_time > ymd_hms("2021-10-01 06:15:00")) %>%
+  mutate(im_event_test=ifelse(lag(im_event_0.6c, default = first(im_event_0.6c))=="C_drop", "yes", "no"),
+         im_event_fil=ifelse(im_event_test=="no" & im_event_0.6c=="C_drop", "first_drop", "not"),
+         wvht_outlier=ifelse(im_event_fil=="first_drop" & tide_height<0, "outlier", "no biggie")) %>%
+  mutate(time_lub=hms(time), #apply lubridate to time
+         hour_fil=ifelse(hour(time_lub)>04 & hour(time_lub)<21, "daytime", "nighttime"))%>%
+  filter(hour_fil=="daytime")
+
+view(lol_wvht_exp)
+
+ggplot(lol_wvht_exp, aes(x=date_time)) +
+  geom_point(aes(y=tide_height, color=im_event_fil, size=wvht_outlier)) + 
+  geom_point(aes(y=temp_c, color=im_event_fil, size=wvht_outlier)) +
+  theme_bw()
+
+lol_hh_fil <- lol_wvht_exp %>%
+  filter(im_event_fil=="first_drop")
+
+view(lol_hh_fil)
+
+ggplot(lol_hh_fil, aes(x=date_time)) +
+  geom_point(aes(y=tide_height), color="green", size=0.5) + 
+  geom_point(aes(y=wvht), color="blue", size=0.5) +
+  theme_bw()
+
+ggplot(lol_hh_fil, aes(x=tide_height)) +
+  geom_histogram()
+
+ggplot(lol_hh_fil, aes(x=tide_height, y=wvht))+
+  geom_point() +
+  labs(x="Tide height", y="Wave height")
+
+ggsave(here("figures", "sensors", "0.6_drop.png"), height=20, width=40, units="cm")
 ```
 
-When tide is above 3.0, 3C drops are exclusively midday
 
 
 ## for ALG
