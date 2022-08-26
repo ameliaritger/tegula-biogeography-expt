@@ -1,0 +1,37 @@
+"location","species","total_orgs","number_transects_sampled","total_area_sampled","density_per_m2"
+"Alegria","Large crabs",5,4,311.2,0.0160668380462725
+"Alegria","Large whelks",0,4,311.2,0
+"Alegria","Octopus",0,4,311.2,0
+"Alegria","Other stars",0,4,311.2,0
+"Alegria","Small crabs",405,4,311.2,1.30141388174807
+"Bodega Bay","Large crabs",7,4,214,0.0327102803738318
+"Bodega Bay","Large whelks",0,4,214,0
+"Bodega Bay","Octopus",0,4,214,0
+"Bodega Bay","Other stars",0,4,214,0
+"Bodega Bay","Small crabs",278,4,214,1.29906542056075
+"Cabrillo NM","Large crabs",0,4,480,0
+"Cabrillo NM","Large whelks",1,4,480,0.00208333333333333
+"Cabrillo NM","Octopus",5,4,480,0.0104166666666667
+"Cabrillo NM","Other stars",0,4,480,0
+"Cabrillo NM","Small crabs",405,4,480,0.84375
+"Fogarty Creek","Large crabs",1,4,424,0.00235849056603774
+"Fogarty Creek","Large whelks",0,4,424,0
+"Fogarty Creek","Octopus",0,4,424,0
+"Fogarty Creek","Other stars",3,4,424,0.00707547169811321
+"Fogarty Creek","Small crabs",17,4,424,0.0400943396226415
+"Lompoc Landing","Large crabs",6,4,178,0.0337078651685393
+"Lompoc Landing","Large whelks",0,4,178,0
+"Lompoc Landing","Octopus",5,4,178,0.0280898876404494
+"Lompoc Landing","Other stars",3,4,178,0.0168539325842697
+"Lompoc Landing","Small crabs",664,4,178,3.73033707865169
+"Sokol Point","Large crabs",5,4,352,0.0142045454545455
+"Sokol Point","Large whelks",0,4,352,0
+"Sokol Point","Octopus",0,4,352,0
+"Sokol Point","Other stars",2,4,352,0.00568181818181818
+"Sokol Point","Small crabs",1,4,352,0.00284090909090909
+"Alegria","Pisaster",6,4,15,0.4
+"Bodega Bay","Pisaster",89,4,103.8,0.857418111753372
+"Cabrillo NM","Pisaster",0,4,0,0
+"Fogarty Creek","Pisaster",46,4,157.8,0.291508238276299
+"Lompoc Landing","Pisaster",46,4,52.8,0.871212121212121
+"Sokol Point","Pisaster",109,4,213,0.511737089201878
