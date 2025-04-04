@@ -20,9 +20,8 @@ library(scales)
 library(rvest) #to scrape tide data from the internet
 library(reshape) #to ultimately merge BML, LOL, and ALG
 library(gt) #create nice table for presentations
-library(webshot) #save gt() table
+library(webshot) #save gt() table, save highcharts to .png files
 library(highcharter) #create highchart to interact with data
-library(webshot) #save highcharts to .png files
 library(plotly) #create plots with multiple y axes
 library(filesstrings) #move plotly figure to proper folder location
 ```
@@ -167,7 +166,7 @@ bml_auto <- full_join(bml_auto_tide, bml_temp) %>%
   drop_na(c(temp_c)) %>% #remove hobo measurements taken outside of Durafet measurements
   rename(temp_durafet_c=temp_c) %>% #rename column of temp values taken from Durafet
   mutate(temp_hobo_c=ifelse((date_time==ymd_hms("2021-06-11 08:45:00")), NA, temp_hobo_c)) %>% #some HOBO values are quite odd, replace with NA
-  mutate(temp_c=ifelse(is.na(temp_hobo_c==TRUE), temp_durafet_c, temp_hobo_c)) %>% #the HOBO was deployed weeks after the Durafet, so create a new column accounting for this
+  #mutate(temp_c=ifelse(is.na(temp_hobo_c==TRUE), temp_durafet_c, temp_hobo_c)) %>% #the HOBO was deployed weeks after the Durafet, so create a new column accounting for this
   filter(date_time <= ymd_hms("2021-10-08 19:00:00")) #remove observations where sensor was not in field
 ```
 
@@ -189,7 +188,7 @@ ggplot(data = bml_diff, aes(x=date_time)) +
 
 ```{r}
 bml_check <- bml_auto %>%
-  pivot_longer(cols=temp_durafet_c:temp_c,
+  pivot_longer(cols=temp_durafet_c:temp_hobo_c,
                names_to = "data",
                values_to = "value")
   
@@ -214,7 +213,7 @@ bml_detide <- bml_auto %>%
   
 ggplot(bml_detide, aes(x=date_time)) +
   geom_point(aes(y=tide_height, color=tide), size=0.1) + 
-  geom_point(aes(y=temp_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
+  geom_point(aes(y=temp_hobo_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
@@ -229,7 +228,7 @@ p <- bml_detide %>%
          #date_time > ymd_hms("2021-06-20 01:00:00")) %>%
   ggplot(aes(x=date_time)) +
   geom_line(aes(y=tide_height, color=tide)) + 
-  geom_point(aes(y=temp_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
+  geom_point(aes(y=temp_hobo_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
   theme_bw()
 
 ggplotly(p)
@@ -275,7 +274,7 @@ bml_detide_temp <- bml_detide %>%
          #!(date_time >= ymd_hms("2021-07-23 07:15:00") & date_time <= ymd_hms("2021-07-23 08:30:00")))
 
 ggplot(bml_detide_temp, aes(x=date_time)) +
-  geom_line(aes(y=temp_c), color="red") + 
+  geom_line(aes(y=temp_hobo_c), color="red") + 
   geom_line(aes(y=p_h), color="green") + 
   geom_line(aes(y=tide_height), color="blue") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 day"), 
@@ -359,7 +358,7 @@ ggplot(data = lol_temp_diff, aes(x=date_time)) +
   ylab("temp diff between durafet and hobo") +
   xlab("date")
 
-ggsave(here("figures", "tempdiff-lol.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "tempdiff-lol.png"), height=20, width=40, units="cm")
 ```
 
 
@@ -383,20 +382,20 @@ highchart() %>%
 
 #Join pH, temp data with tide data
 lol_all <- full_join(lol_all_1, lol_tide) %>%
-  drop_na(c(tide, p_h)) %>% #remove unnecessary tide values
-  mutate(temp_c=temp_hobo_c)
+  drop_na(c(tide, p_h)) #%>% #remove unnecessary tide values
+  #mutate(temp_c=temp_hobo_c)
 ```
 
 ### Check if anomalous points in durafet vs hobo are due to tide cycle?
 ```{r}
 lol_check <- lol_all %>%
-  mutate(diff=temp_durafet_c-temp_c) %>%
+  mutate(diff=temp_durafet_c-temp_hobo_c) %>%
   filter(tide<3.232) #this value was extracted thanks to code later on
   #filter((date_time < ymd_hms("2021--01 01:00:00") & date_time <= ymd_hms("2021-10-22 24:00:00")))
 
 #create a highchart to assess
 y1 <- lol_check$temp_durafet_c
-y2 <- lol_check$temp_c
+y2 <- lol_check$temp_hobo_c
 y3 <- lol_check$diff
 x <- lol_check$date_time
 
@@ -439,7 +438,7 @@ lol_detide <- lol_all %>%
 
 ggplot(lol_detide, aes(x=date_time)) +
   geom_line(aes(y=tide_height), color="red") + 
-  geom_line(aes(y=temp_c), color="blue") +
+  geom_line(aes(y=temp_hobo_c), color="blue") +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
@@ -452,8 +451,8 @@ ggplot(lol_detide, aes(x=date_time)) +
 lol_check <- lol_detide %>%
   filter(date_time < ymd_hms("2021-07-30 23:00:00")) %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
-  mutate(diff = temp_c - lag(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
-  mutate(diff2 = temp_c - lead(temp_c, default = first(temp_c))) #find difference between two subsequent temp measurements to identify anomalies
+  mutate(diff = temp_hobo_c - lag(temp_hobo_c, default = first(temp_hobo_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
+  mutate(diff2 = temp_hobo_c - lead(temp_hobo_c, default = first(temp_hobo_c))) #find difference between two subsequent temp measurements to identify anomalies
   #filter(diff < 1 | diff > -1 | diff2 < 1 | diff2 > -1)
 
 #Thank you stas g (https://stats.stackexchange.com/a/164830) for this function
@@ -470,23 +469,23 @@ find_peaks <- function (x, m = 3){
      pks
 }
 
-pk <- find_peaks(lol_check$temp_c, m = 50) #set a high threshold bc we need it...
+pk <- find_peaks(lol_check$temp_hobo_c, m = 50) #set a high threshold bc we need it...
 
 lol_check_peak <- lol_detide %>%
   #filter(tide=="high") %>%
   filter(date_time < ymd_hms("2021-07-30 23:00:00")) %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
-  mutate(diff = temp_c - lag(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
-  mutate(diff2 = temp_c - lead(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
+  mutate(diff = temp_hobo_c - lag(temp_hobo_c, default = first(temp_hobo_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
+  mutate(diff2 = temp_hobo_c - lead(temp_hobo_c, default = first(temp_hobo_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
   #filter(diff < 1 | diff > -1 | diff2 < 1 | diff2 > -1)
   mutate(peak = ifelse(row_number() %in% c(pk) == TRUE, 1, 0)) #if a row ID matches the row ID found by find_peaks, then call it "1" (if not, "0")
 
 ggplot(lol_check_peak, aes(x=date_time)) +
   geom_line(aes(y=tide_height), color="red") + 
-  geom_line(aes(y=temp_c), color="blue") +
+  geom_line(aes(y=temp_hobo_c), color="blue") +
   geom_line(aes(y=diff), color="green") +
   #geom_line(aes(y=diff2), color="orange") +
-  geom_point(aes(y=temp_c, color=ifelse(peak>0, "red", "black"), size=ifelse(peak>0, 2, 0))) + #if it's a peak, color it red and make it big
+  geom_point(aes(y=temp_hobo_c, color=ifelse(peak>0, "red", "black"), size=ifelse(peak>0, 2, 0))) + #if it's a peak, color it red and make it big
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
@@ -512,7 +511,7 @@ lol_detide_temp_ph <- lol_detide %>%
 #And plot it up 
 ggplot(lol_detide_temp_ph, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
-  geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=temp_hobo_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=diff3), color="green") +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -534,7 +533,7 @@ ggplot(lol_detide_temp_ph, aes(x=date_time)) +
 ### Plot up these data using a format similar to Li's for the LTER data - welcome, highchart!
 ```{r}
 y1 <- lol_detide_temp_ph$p_h
-y2 <- lol_detide_temp_ph$temp_c
+y2 <- lol_detide_temp_ph$temp_hobo_c
 y3 <- lol_detide_temp_ph$tide
 x <- lol_detide_temp_ph$date_time
 
@@ -579,7 +578,7 @@ lol_wave_join <- full_join(lol_july, lol_wave) %>%
   filter(date_time > ymd_hms("2021-07-20 00:00:00"),
          date_time < ymd_hms("2021-07-25 00:00:00"))
 
-y1 <- lol_wave_join$temp_c
+y1 <- lol_wave_join$temp_hobo_c
 y2 <- lol_wave_join$wvht
 y3 <- lol_wave_join$tide
 x <- lol_wave_join$date_time
@@ -633,7 +632,7 @@ lol_superfilter <- lol_detide %>%
 #2.3, 2.68 are also good candidates - I want to make sure I'm not over-filtering
 
 y1 <- lol_superfilter$p_h
-y2 <- lol_superfilter$temp_c
+y2 <- lol_superfilter$temp_hobo_c
 y3 <- lol_superfilter$tide_height
 x <- lol_superfilter$date_time
 
@@ -671,7 +670,7 @@ lol_high <- lol_tide_options %>%
 
 ggplot(lol_tide_options, aes(x=date_time)) +
   geom_line(aes(y=p_h)) +
-  geom_line(aes(y=temp_c)) +
+  geom_line(aes(y=temp_hobo_c)) +
   #geom_line(aes(y=p_h, color=tide_med)) +
   #geom_line(aes(y=p_h, color=tide_high)) +
   #geom_line(aes(y=temp_c), color="blue") +
@@ -681,7 +680,7 @@ ggplot(lol_tide_options, aes(x=date_time)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "lol_high.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "lol_high.png"), height=20, width=40, units="cm")
 
 ph_low <- lol_tide_options %>%
   filter(tide_low=="high") %>%
@@ -795,8 +794,7 @@ ggplot(alg_plot, aes(x=date_time, y=value, group=data)) +
 ```{r}
 #Check difference between Durafet and HOBO temperature measurements
 alg_diff <- alg_all %>%
-  mutate(temp_diff=temp_hobo_c - temp_durafet_c)
-%>%
+  mutate(temp_diff=temp_hobo_c - temp_durafet_c) %>%
   filter(temp_diff > 0,
          temp_diff < 1.3)
 
@@ -805,7 +803,7 @@ ggplot(data = alg_diff, aes(x=date_time)) +
   ylab("temp diff between durafet and hobo") +
   xlab("date")
 
-ggsave(here("figures", "alg_tempdiff.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "alg_tempdiff.png"), height=20, width=40, units="cm")
 ```
 
 ### Remove anomalous measurements at beginning and end of deployment (sensor was likely inundated with sand)
@@ -814,9 +812,9 @@ alg_desand <- alg_all %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"), #super weird, but pH looks like it stabilizes at 1AM post sand
          date_time <= ymd_hms("2021-11-07 17:00:00")) %>% #and then here's a period of time at the end of deployment that needs to be removed
   mutate(p_h=ifelse((date_time > ymd_hms("2021-10-23 16:45:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, p_h),
-         temp_hobo_c=ifelse((date_time > ymd_hms("2021-10-23 16:45:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, temp_hobo_c)) %>% #since this is in the middle of the dataset, replace values with "NA" rather than remove entirely (otherwise when plotting, R will fill in the missing space with a straight line)
-  distinct(date_time, .keep_all = TRUE) %>% #remove duplicated data (not sure where those came from)
-  rename(temp_c=temp_hobo_c) #rename temperature column
+         temp_durafet_c=ifelse((date_time > ymd_hms("2021-10-23 16:45:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, temp_durafet_c)) %>% #since this is in the middle of the dataset, replace values with "NA" rather than remove entirely (otherwise when plotting, R will fill in the missing space with a straight line)
+  distinct(date_time, .keep_all = TRUE)# %>% #remove duplicated data (not sure where those came from)
+  #rename(temp_c=temp_hobo_c) #rename temperature column
 
 ggplot(alg_desand, aes(x=date_time, y=p_h)) +
   geom_line(size=0.7) +
@@ -836,7 +834,7 @@ alg_detide <- alg_desand %>%
 
 ggplot(alg_detide, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
-  geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=temp_hobo_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("4 days"), 
                     labels = date_format("%m/%d %H:%m")) +
@@ -868,7 +866,7 @@ alg_highchart <- alg_detide %>%
 # filter(tide>=0.9)
 
 y1 <- alg_highchart$p_h
-y2 <- alg_highchart$temp_c
+y2 <- alg_highchart$temp_hobo_c
 y3 <- alg_highchart$tide_heigh
 x <- alg_highchart$date_time
 
@@ -893,9 +891,9 @@ There's still some noise at a few dates, let's filter those dates out of the dat
 ```{r}
 alg_no_noise <- alg_detide %>%
   mutate(p_h=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, p_h),
-         temp_c=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, temp_c)) %>% #super noisy section of time for pH (not temp though) in mid July
+         temp_durafet_c=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, temp_durafet_c)) %>% #super noisy section of time for pH (not temp though) in mid July
   mutate(p_h=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, p_h),
-         temp_c=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, temp_c)) %>% #super noisy section of time for pH (not temp) in early September
+         temp_durafet_c=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, temp_durafet_c)) %>% #super noisy section of time for pH (not temp) in early September
   filter(!(date_time %in% (ymd_hms("2021-06-19 10:15:00",
                                    "2021-06-29 14:15:00",
                                    "2021-06-29 15:30:00",
@@ -924,7 +922,7 @@ alg_no_noise <- alg_detide %>%
 
 ggplot(alg_no_noise, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
-  geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=temp_hobo_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("4 days"), 
                     labels = date_format("%m/%d %H:%m")) +
@@ -943,7 +941,9 @@ ggplot(alg_no_noise, aes(x=date_time)) +
 # Now let's actually plot up a comparison of the pH values across sites
 ```{r}
 #join all sites into one df (and remove diff columns)
-ph_all <- merge_recurse(list(alg_no_noise, lol_detided, bml_detide_temp))
+ph_all <- merge_recurse(list(alg_no_noise, lol_detided, bml_detide_temp)) %>%
+  mutate(site = factor(site, levels = c("Alegria", "Bodega Bay", "Lompoc Landing"))) %>%
+  arrange(site, date_time)
 
 ph_all_detide <- ph_all %>%
   filter(tide=="high")
@@ -975,7 +975,7 @@ ggplot(ph_all_detide, aes(x=date_time, y=p_h, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "sensors", "ph_all_detide_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_all_detide_final.png"), height=20, width=40, units="cm")
 
 # For presentations, highlight one line at a time per site
 #BML focal
@@ -996,7 +996,7 @@ ggplot(ph_all_detide, aes(x=date_time, y=p_h, group=site)) +
         legend.position = "none") +
   scale_alpha_manual(values=c(0.5,0.5,1))
 
-ggsave(here("figures", "sensors", "ph_bml_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_bml_final.png"), height=20, width=40, units="cm")
 
 #LOL focal
 ph_all_detide$site <- factor(ph_all_detide$site, levels=c("Alegria","Bodega Bay", "Lompoc Landing"))
@@ -1016,7 +1016,7 @@ ggplot(ph_all_detide, aes(x=date_time, y=p_h, group=site)) +
         legend.position = "none") +
   scale_alpha_manual(values=c(0.5,0.5,1))
 
-ggsave(here("figures", "sensors", "ph_lol_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_lol_final.png"), height=20, width=40, units="cm")
 
 #ALG focal
 ph_all_detide$site <- factor(ph_all_detide$site, levels=c("Lompoc Landing","Bodega Bay", "Alegria"))
@@ -1036,11 +1036,11 @@ ggplot(ph_all_detide, aes(x=date_time, y=p_h, group=site)) +
         legend.position = "none") +
   scale_alpha_manual(values=c(0.5,0.5,1))
 
-ggsave(here("figures", "sensors", "ph_alg_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_alg_final.png"), height=20, width=40, units="cm")
 
 # Save the "final" df to a .csv file
 write.csv(ph_all, here("data", "sensors", "ph_clean_final.csv"), row.names = FALSE)
-write.csv(ph_all_detide, here("data", "sensors", "ph_detide_final.csv"), row.names = FALSE)
+#write.csv(ph_all_detide, here("data", "sensors", "ph_detide_final.csv"), row.names = FALSE)
 ```
 
 # Let's also compare temperature across sites
@@ -1086,7 +1086,7 @@ ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "sensors", "temp_all_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "temp_all_final.png"), height=20, width=40, units="cm")
 ```
 
 # Let's try to combine pH and temperature plots into one grid
