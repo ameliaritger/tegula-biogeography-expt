@@ -65,7 +65,7 @@ omegas_temp_tris <- tris_voltages %>% # create new data frame using omegas value
          v3=(mv3/1000),
          v4=(mv4/1000)) %>% # converting the mV to volts
   mutate(vbattery=((v2/100)*101.57)) %>% # calculate vbattery
-  mutate(z=(v4/100)+vbattery*(15000/(1000000+15000))) %>% # calculate column k
+  mutate(z=(v4/100)+vbattery*((15000*0.99)/(1000000+(15000*0.99)))) %>% # calculate column k
   mutate(y=(z*1000000)) %>% # calculate column l
   mutate(rthermistor=(y/(vbattery-z))) %>% # calculate Rthermistor
   mutate(sh_a=as.numeric(0.00106329736674527)) %>% # create column with Steinhart constant A
@@ -144,7 +144,7 @@ omegas_temp_raw <- data.frame(rawdata$voltage_1_m_v,rawdata$voltage_2_m_v,rawdat
          v3=(mv3/1000),
          v4=(mv4/1000)) %>% # converting the mV to volts
   mutate(vbattery=((v2/100)*101.57))%>% # calculate vbattery
-  mutate(z=(v4/100)+vbattery*(15000/(1000000+15000))) %>% # calculate column k
+  mutate(z=(v4/100)+vbattery*((15000*0.99)/(1000000+(15000*0.99)))) %>% # calculate column k
   mutate(y=(z*1000000)) %>% # calculate column l
   mutate(rthermistor=(y/(vbattery-z))) %>% # calculate Rthermistor
   mutate(sh_a=as.numeric(0.00106329736674527)) %>% # create column with Steinhart constant A
