@@ -166,7 +166,7 @@ bml_auto <- full_join(bml_auto_tide, bml_temp) %>%
   drop_na(c(temp_c)) %>% #remove hobo measurements taken outside of Durafet measurements
   rename(temp_durafet_c=temp_c) %>% #rename column of temp values taken from Durafet
   mutate(temp_hobo_c=ifelse((date_time==ymd_hms("2021-06-11 08:45:00")), NA, temp_hobo_c)) %>% #some HOBO values are quite odd, replace with NA
-  #mutate(temp_c=ifelse(is.na(temp_hobo_c==TRUE), temp_durafet_c, temp_hobo_c)) %>% #the HOBO was deployed weeks after the Durafet, so create a new column accounting for this
+  mutate(temp_c=ifelse(is.na(temp_hobo_c==TRUE), temp_durafet_c, temp_hobo_c)) %>% #the HOBO was deployed weeks after the Durafet, so create a new column accounting for this
   filter(date_time <= ymd_hms("2021-10-08 19:00:00")) #remove observations where sensor was not in field
 ```
 
@@ -812,7 +812,7 @@ alg_desand <- alg_all %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"), #super weird, but pH looks like it stabilizes at 1AM post sand
          date_time <= ymd_hms("2021-11-07 17:00:00")) %>% #and then here's a period of time at the end of deployment that needs to be removed
   mutate(p_h=ifelse((date_time > ymd_hms("2021-10-23 16:45:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, p_h),
-         temp_durafet_c=ifelse((date_time > ymd_hms("2021-10-23 16:45:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, temp_durafet_c)) %>% #since this is in the middle of the dataset, replace values with "NA" rather than remove entirely (otherwise when plotting, R will fill in the missing space with a straight line)
+         temp_hobo_c=ifelse((date_time > ymd_hms("2021-10-23 16:45:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, temp_hobo_c)) %>% #since this is in the middle of the dataset, replace values with "NA" rather than remove entirely (otherwise when plotting, R will fill in the missing space with a straight line)
   distinct(date_time, .keep_all = TRUE)# %>% #remove duplicated data (not sure where those came from)
   #rename(temp_c=temp_hobo_c) #rename temperature column
 
@@ -891,9 +891,9 @@ There's still some noise at a few dates, let's filter those dates out of the dat
 ```{r}
 alg_no_noise <- alg_detide %>%
   mutate(p_h=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, p_h),
-         temp_durafet_c=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, temp_durafet_c)) %>% #super noisy section of time for pH (not temp though) in mid July
+         temp_hobo_c=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, temp_hobo_c)) %>% #super noisy section of time for pH (not temp though) in mid July
   mutate(p_h=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, p_h),
-         temp_durafet_c=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, temp_durafet_c)) %>% #super noisy section of time for pH (not temp) in early September
+         temp_hobo_c=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, temp_hobo_c)) %>% #super noisy section of time for pH (not temp) in early September
   filter(!(date_time %in% (ymd_hms("2021-06-19 10:15:00",
                                    "2021-06-29 14:15:00",
                                    "2021-06-29 15:30:00",
@@ -940,6 +940,10 @@ ggplot(alg_no_noise, aes(x=date_time)) +
 
 # Now let's actually plot up a comparison of the pH values across sites
 ```{r}
+bml_detide_temp <- bml_detide_temp %>%
+  select(-temp_hobo_c) %>%
+  rename(temp_hobo_c=temp_c)
+
 #join all sites into one df (and remove diff columns)
 ph_all <- merge_recurse(list(alg_no_noise, lol_detided, bml_detide_temp)) %>%
   mutate(site = factor(site, levels = c("Alegria", "Bodega Bay", "Lompoc Landing"))) %>%
@@ -1047,15 +1051,15 @@ write.csv(ph_all, here("data", "sensors", "ph_clean_final.csv"), row.names = FAL
 ```{r}
 #add site identity before joining
 bml_temp_join <- bml_detide_temp %>%
-  select(date_time, temp_c, p_h, tide) %>%
+  select(date_time, temp_hobo_c, p_h, tide) %>%
   mutate(site = "Bodega Bay")
 
 lol_temp_join <- lol_detided %>%
-  select(date_time, temp_c, p_h, tide) %>%
+  select(date_time, temp_hobo_c, p_h, tide) %>%
   mutate(site = "Lompoc Landing")
 
 alg_join <- alg_no_noise %>%
-  select(date_time, temp_c, p_h, tide) %>%
+  select(date_time, temp_hobo_c, p_h, tide) %>%
   mutate(site = "Alegria")
 
 #join these all together into one df
@@ -1072,7 +1076,7 @@ pal <- c(
   "Bodega Bay" = "#0072B2"
 )
 
-ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
+ggplot(temp_all, aes(x=date_time, y=temp_hobo_c, group=site)) +
   geom_line(aes(color=site), size=0.7, alpha=0.8) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -1100,9 +1104,9 @@ ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
 all <- temp_all %>%
   filter(tide=="high") %>%
   select(-tide) %>%
-  relocate(site, date_time, temp_c, p_h) %>%
+  relocate(site, date_time, temp_hobo_c, p_h) %>%
   rename(Site=site) %>%
-  pivot_longer(cols=temp_c:p_h,
+  pivot_longer(cols=temp_hobo_c:p_h,
                names_to = "group",
                values_to = "value")
 
@@ -1143,7 +1147,7 @@ ggplot(all, aes(x=date_time, y=value, group=group)) +
         strip.placement = "outside") + #place the strip outside of the plot
   guides(colour = guide_legend(override.aes = list(size=5, alpha = 1)))
 
-ggsave(here("figures", "sensors", "temp_all_facet_final.png"), height=50, width=60, units="cm")
+#ggsave(here("figures", "sensors", "temp_all_facet_final.png"), height=50, width=60, units="cm")
 ```
 
 Now, for some "Chan et al 2017" style analyses
@@ -1471,7 +1475,7 @@ ggplot(bml_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
   guides(size = FALSE) +
   labs(x = "wave height", y = "tide height", color = "time of day")
 
-ggsave(here("figures", "wave-bml.png"), height=20, width=30, units="cm")
+#ggsave(here("figures", "wave-bml.png"), height=20, width=30, units="cm")
 ```
  
 Well, this doesn't make much sense. There isn't a clear waveheight that I can filter, given there are only 4 instances of 3C drops in the middle of the day (between 10am and 5pm) when the tide was going out/coming in (between -0.1 and 0.5). 
@@ -1544,7 +1548,7 @@ ggplot(lol_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
   guides(size = FALSE) +
   labs(x = "wave height", y = "tide height", color = "time of day")
 
-ggsave(here("figures", "wave-lol_1.4.png"), height=20, width=30, units="cm")
+#ggsave(here("figures", "wave-lol_1.4.png"), height=20, width=30, units="cm")
 ```
 When tide is above 3.0, 3C drops are exclusively midday
 
@@ -1593,7 +1597,7 @@ ggplot(lol_hh_fil, aes(x=tide_height, y=wvht))+
   geom_point() +
   labs(x="Tide height", y="Wave height")
 
-ggsave(here("figures", "sensors", "0.6_drop.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "0.6_drop.png"), height=20, width=40, units="cm")
 ```
 
 
