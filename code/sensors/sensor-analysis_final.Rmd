@@ -1155,44 +1155,59 @@ Now, for some "Chan et al 2017" style analyses
 # Look at the frequency of pH values below 7.8 
 ```{r}
 ph_7.8 <- ph_all %>%
-  filter(tide=="high") %>%
+    filter((site == "Bodega Marine Lab" & tide == "high") | (site != "Bodega Marine Lab")) %>%  # Filter high tide for BML, keep both for others
+  #filter(tide=="high") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00")) %>% #only select dates where all sensors were deployed (6/18 until 10/08)
   #drop_na(c(tide)) %>%
-  mutate(threshold = ifelse(p_h<7.8, "below", "above")) %>%
+  mutate(threshold = ifelse(p_h<=7.8, "below", "above")) %>%
   filter(!is.na(p_h)) %>% #remove the times with anomalous pH readings that were replaced with NA
   group_by(site, threshold) %>%
   summarize(tot_observations = n()) %>%
   ungroup()
   #add_row(site="Alegria", threshold="below", tot_observations=0) #add this row because Alegria has 0 observations below 7.8 (for now...)
 
-#Get total number of observations - use double square brackets because it's a tibble
-alg_n <- ph_7.8[[1,3]] + ph_7.8[[2,3]]
-lol_n <- ph_7.8[[3,3]] + ph_7.8[[4,3]]
-bml_n <- ph_7.8[[5,3]] + ph_7.8[[6,3]]
+ph_prop <- ph_7.8 %>%
+  group_by(site) %>%
+  mutate(total_site_observations = sum(tot_observations)) %>%
+  filter(threshold == "below") %>%  # Keep only "below" rows
+  mutate(proportion_below_7.8 = tot_observations / total_site_observations) %>%
+  select(site, proportion_below_7.8)  # Select only site and proportion
 
-#Get frequency of pH values below 7.8
-alg_7.8 <- ph_7.8[[2,3]]/alg_n
-lol_7.8 <- ph_7.8[[4,3]]/lol_n
-bml_7.8 <- ph_7.8[[6,3]]/bml_n
+bml_7.8 <- ph_prop %>%
+  filter(site == "Bodega Bay") %>%
+  select(proportion_below_7.8) %>%
+  pull()
+
+lol_7.8 <- ph_prop %>%
+  filter(site == "Lompoc Landing") %>%
+  select(proportion_below_7.8) %>%
+  pull()
+
+alg_7.8 <- ph_prop %>%
+  filter(site == "Alegria") %>%
+  select(proportion_below_7.8) %>%
+  pull()
 ```
+
 
 # Create a nice table directly comparing conditions between sites
 ```{r}
 # Create de-tided dfs, select only times when all sensors where out at all locations (6/18 until 10/08)
-alg_table <- alg_no_noise %>%
-  filter(tide=="high") %>%
+alg_table <- ph_all %>% 
+  filter(site=="Alegria") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00")) %>%
   filter(!is.na(p_h)) #create df for ALG without NA values
 
-lol_table <- lol_detided %>%
-    filter(tide=="high") %>%
+lol_table <-  ph_all %>% 
+  filter(site=="Lompoc Landing") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00"))
 
-bml_table <- bml_detide_temp %>%
-    filter(tide=="high") %>%
+bml_table <- ph_all %>%
+    filter(site=="Bodega Bay",
+           tide=="high") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00"))
   
@@ -1220,63 +1235,95 @@ bml_cv <- (bml_sd/bml_mean)*100 #coefficient of variation
 
 ph_table <- tribble(
   ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",  ~"CV", ~"< 7.8", 
-  "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv, bml_7.8,
+  "Bodega Marine Reserve", bml_min, bml_max, bml_median, bml_cv, bml_7.8,
   "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv, lol_7.8,
   "Alegria", alg_min, alg_max, alg_median, alg_cv, alg_7.8) 
 
 ph_table %>%
-  gt() %>%
-  fmt_number(
-  columns = c("Min pH":"Median pH"),
-  rows = everything(),
-  decimals = 2) %>%
-  data_color(
-    columns = c("Site"),
-    colors = scales::col_factor( # <- bc it's a factor
-      palette = c("#D55E00","#0072B2","#009E73"),
-      domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
-  gtsave(here("figures", "sensors", "table_ph_final.png"))
+  kable(format = "html", digits = 2) %>%
+  # Styling for the table
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE) %>%  # Make header bold
+  # Set the background to white for all columns except the 'Site' column and text color to black
+  column_spec(2:6, background = "white", color = "black") %>%  # Apply white background to all columns except Site
+  # Apply custom color mapping to the "Site" column (Location)
+  column_spec(1, 
+              background = case_when(
+                ph_table$Site == "Bodega Marine Reserve" ~ "#0072B2",
+                ph_table$Site == "Lompoc Landing" ~ "#009E73", 
+                ph_table$Site == "Alegria" ~ "#D55E00",
+                TRUE ~ "white"
+              ), color = "black", bold = TRUE) %>%  # Set text color to black for Site column
+  # Header row styling
+  row_spec(0, bold = TRUE, color = "black", background = "white")
+
+#html_file <- "table.html"
+#save_html(html_table, file = html_file)
+
+```
+
+
+```{r}
+#gtsave(here("figures", "dissertation", "table_ph_final.png"))
 
 # Calculate min, max, average temp values for each site
-alg_min <- (min(alg_table$temp_c))
-alg_max <- (max(alg_table$temp_c))
-alg_median <- (median(alg_table$temp_c))
-alg_mean <- (mean(alg_table$temp_c))
-alg_sd <- (sd(alg_table$temp_c))
+alg_min <- (min(alg_table$temp_hobo_c))
+alg_max <- (max(alg_table$temp_hobo_c))
+alg_median <- (median(alg_table$temp_hobo_c))
+alg_mean <- (mean(alg_table$temp_hobo_c))
+alg_sd <- (sd(alg_table$temp_hobo_c))
 alg_cv <- (alg_sd/alg_mean)*100 #coefficient of variation
 
-lol_min <- (min(lol_table$temp_c))
-lol_max <- (max(lol_table$temp_c))
-lol_median <- (median(lol_table$temp_c))
-lol_mean <- (mean(lol_table$temp_c))
-lol_sd <- (sd(lol_table$temp_c))
+lol_min <- (min(lol_table$temp_hobo_c))
+lol_max <- (max(lol_table$temp_hobo_c))
+lol_median <- (median(lol_table$temp_hobo_c))
+lol_mean <- (mean(lol_table$temp_hobo_c))
+lol_sd <- (sd(lol_table$temp_hobo_c))
 lol_cv <- (lol_sd/lol_mean)*100 #coefficient of variation
 
-bml_min <- (min(bml_table$temp_c))
-bml_max <- (max(bml_table$temp_c))
-bml_median <- (median(bml_table$temp_c))
-bml_mean <- (mean(bml_table$temp_c))
-bml_sd <- (sd(bml_table$temp_c))
+bml_min <- (min(bml_table$temp_hobo_c))
+bml_max <- (max(bml_table$temp_hobo_c))
+bml_median <- (median(bml_table$temp_hobo_c))
+bml_mean <- (mean(bml_table$temp_hobo_c))
+bml_sd <- (sd(bml_table$temp_hobo_c))
 bml_cv <- (bml_sd/bml_mean)*100 #coefficient of variation
 
 temp_table <- tribble(
   ~"Site", ~"Min temp", ~"Max temp", ~"Median temp",  ~"CV", 
-  "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv,
+  "Bodega Marine Reserve", bml_min, bml_max, bml_median, bml_cv,
   "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv,
   "Alegria", alg_min, alg_max, alg_median, alg_cv) 
 
 temp_table %>%
-  gt() %>%
-  fmt_number(
-  columns = c("Min temp":"Median temp"),
-  rows = everything(),
-  decimals = 2) %>%
-  data_color(
-    columns = c("Site"),
-    colors = scales::col_factor( # <- bc it's a factor
-      palette = c("#D55E00","#0072B2","#009E73"),
-      domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
-  gtsave(here("figures", "sensors", "table_temp_final.png"))
+  kable(format = "html", digits = 2) %>%
+  # Styling for the table
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE) %>%  # Make header bold
+  # Set the background to white for all columns except the 'Site' column and text color to black
+  column_spec(2:5, background = "white", color = "black") %>%  # Apply white background to all columns except Site
+  # Apply custom color mapping to the "Site" column (Location)
+  column_spec(1, 
+              background = case_when(
+                ph_table$Site == "Bodega Marine Reserve" ~ "#0072B2",
+                ph_table$Site == "Lompoc Landing" ~ "#009E73", 
+                ph_table$Site == "Alegria" ~ "#D55E00",
+                TRUE ~ "white"
+              ), color = "black", bold = TRUE) %>%  # Set text color to black for Site column
+  # Header row styling
+  row_spec(0, bold = TRUE, color = "black", background = "white")
+
+# temp_table %>%
+#   gt() %>%
+#   fmt_number(
+#   columns = c("Min temp":"Median temp"),
+#   rows = everything(),
+#   decimals = 2) %>%
+#   data_color(
+#     columns = c("Site"),
+#     colors = scales::col_factor( # <- bc it's a factor
+#       palette = c("#D55E00","#0072B2","#009E73"),
+#       domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
+#   gtsave(here("figures", "dissertation", "temp_table_final.png"))
 ```
 
 # Summary (what I did)
