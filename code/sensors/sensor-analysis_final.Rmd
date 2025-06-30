@@ -20,9 +20,8 @@ library(scales)
 library(rvest) #to scrape tide data from the internet
 library(reshape) #to ultimately merge BML, LOL, and ALG
 library(gt) #create nice table for presentations
-library(webshot) #save gt() table
+library(webshot) #save gt() table, save highcharts to .png files
 library(highcharter) #create highchart to interact with data
-library(webshot) #save highcharts to .png files
 library(plotly) #create plots with multiple y axes
 library(filesstrings) #move plotly figure to proper folder location
 ```
@@ -189,7 +188,7 @@ ggplot(data = bml_diff, aes(x=date_time)) +
 
 ```{r}
 bml_check <- bml_auto %>%
-  pivot_longer(cols=temp_durafet_c:temp_c,
+  pivot_longer(cols=temp_durafet_c:temp_hobo_c,
                names_to = "data",
                values_to = "value")
   
@@ -214,7 +213,7 @@ bml_detide <- bml_auto %>%
   
 ggplot(bml_detide, aes(x=date_time)) +
   geom_point(aes(y=tide_height, color=tide), size=0.1) + 
-  geom_point(aes(y=temp_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
+  geom_point(aes(y=temp_hobo_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
@@ -229,7 +228,7 @@ p <- bml_detide %>%
          #date_time > ymd_hms("2021-06-20 01:00:00")) %>%
   ggplot(aes(x=date_time)) +
   geom_line(aes(y=tide_height, color=tide)) + 
-  geom_point(aes(y=temp_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
+  geom_point(aes(y=temp_hobo_c, color=tide), size=0.1) + # Divide by 10 to get the same range than the temperature
   theme_bw()
 
 ggplotly(p)
@@ -275,7 +274,7 @@ bml_detide_temp <- bml_detide %>%
          #!(date_time >= ymd_hms("2021-07-23 07:15:00") & date_time <= ymd_hms("2021-07-23 08:30:00")))
 
 ggplot(bml_detide_temp, aes(x=date_time)) +
-  geom_line(aes(y=temp_c), color="red") + 
+  geom_line(aes(y=temp_hobo_c), color="red") + 
   geom_line(aes(y=p_h), color="green") + 
   geom_line(aes(y=tide_height), color="blue") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("1 day"), 
@@ -359,7 +358,7 @@ ggplot(data = lol_temp_diff, aes(x=date_time)) +
   ylab("temp diff between durafet and hobo") +
   xlab("date")
 
-ggsave(here("figures", "tempdiff-lol.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "tempdiff-lol.png"), height=20, width=40, units="cm")
 ```
 
 
@@ -383,20 +382,20 @@ highchart() %>%
 
 #Join pH, temp data with tide data
 lol_all <- full_join(lol_all_1, lol_tide) %>%
-  drop_na(c(tide, p_h)) %>% #remove unnecessary tide values
-  mutate(temp_c=temp_hobo_c)
+  drop_na(c(tide, p_h)) #%>% #remove unnecessary tide values
+  #mutate(temp_c=temp_hobo_c)
 ```
 
 ### Check if anomalous points in durafet vs hobo are due to tide cycle?
 ```{r}
 lol_check <- lol_all %>%
-  mutate(diff=temp_durafet_c-temp_c) %>%
+  mutate(diff=temp_durafet_c-temp_hobo_c) %>%
   filter(tide<3.232) #this value was extracted thanks to code later on
   #filter((date_time < ymd_hms("2021--01 01:00:00") & date_time <= ymd_hms("2021-10-22 24:00:00")))
 
 #create a highchart to assess
 y1 <- lol_check$temp_durafet_c
-y2 <- lol_check$temp_c
+y2 <- lol_check$temp_hobo_c
 y3 <- lol_check$diff
 x <- lol_check$date_time
 
@@ -439,7 +438,7 @@ lol_detide <- lol_all %>%
 
 ggplot(lol_detide, aes(x=date_time)) +
   geom_line(aes(y=tide_height), color="red") + 
-  geom_line(aes(y=temp_c), color="blue") +
+  geom_line(aes(y=temp_hobo_c), color="blue") +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
@@ -452,8 +451,8 @@ ggplot(lol_detide, aes(x=date_time)) +
 lol_check <- lol_detide %>%
   filter(date_time < ymd_hms("2021-07-30 23:00:00")) %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
-  mutate(diff = temp_c - lag(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
-  mutate(diff2 = temp_c - lead(temp_c, default = first(temp_c))) #find difference between two subsequent temp measurements to identify anomalies
+  mutate(diff = temp_hobo_c - lag(temp_hobo_c, default = first(temp_hobo_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
+  mutate(diff2 = temp_hobo_c - lead(temp_hobo_c, default = first(temp_hobo_c))) #find difference between two subsequent temp measurements to identify anomalies
   #filter(diff < 1 | diff > -1 | diff2 < 1 | diff2 > -1)
 
 #Thank you stas g (https://stats.stackexchange.com/a/164830) for this function
@@ -470,23 +469,23 @@ find_peaks <- function (x, m = 3){
      pks
 }
 
-pk <- find_peaks(lol_check$temp_c, m = 50) #set a high threshold bc we need it...
+pk <- find_peaks(lol_check$temp_hobo_c, m = 50) #set a high threshold bc we need it...
 
 lol_check_peak <- lol_detide %>%
   #filter(tide=="high") %>%
   filter(date_time < ymd_hms("2021-07-30 23:00:00")) %>%
   arrange(date_time) %>% #make sure observations are in order by date/time
-  mutate(diff = temp_c - lag(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
-  mutate(diff2 = temp_c - lead(temp_c, default = first(temp_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
+  mutate(diff = temp_hobo_c - lag(temp_hobo_c, default = first(temp_hobo_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
+  mutate(diff2 = temp_hobo_c - lead(temp_hobo_c, default = first(temp_hobo_c))) %>% #find difference between two subsequent temp measurements to identify anomalies
   #filter(diff < 1 | diff > -1 | diff2 < 1 | diff2 > -1)
   mutate(peak = ifelse(row_number() %in% c(pk) == TRUE, 1, 0)) #if a row ID matches the row ID found by find_peaks, then call it "1" (if not, "0")
 
 ggplot(lol_check_peak, aes(x=date_time)) +
   geom_line(aes(y=tide_height), color="red") + 
-  geom_line(aes(y=temp_c), color="blue") +
+  geom_line(aes(y=temp_hobo_c), color="blue") +
   geom_line(aes(y=diff), color="green") +
   #geom_line(aes(y=diff2), color="orange") +
-  geom_point(aes(y=temp_c, color=ifelse(peak>0, "red", "black"), size=ifelse(peak>0, 2, 0))) + #if it's a peak, color it red and make it big
+  geom_point(aes(y=temp_hobo_c, color=ifelse(peak>0, "red", "black"), size=ifelse(peak>0, 2, 0))) + #if it's a peak, color it red and make it big
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
                     labels = date_format("%m/%d %H:%m")) +
   xlab("Date time") +
@@ -512,7 +511,7 @@ lol_detide_temp_ph <- lol_detide %>%
 #And plot it up 
 ggplot(lol_detide_temp_ph, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
-  geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=temp_hobo_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=diff3), color="green") +
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -534,7 +533,7 @@ ggplot(lol_detide_temp_ph, aes(x=date_time)) +
 ### Plot up these data using a format similar to Li's for the LTER data - welcome, highchart!
 ```{r}
 y1 <- lol_detide_temp_ph$p_h
-y2 <- lol_detide_temp_ph$temp_c
+y2 <- lol_detide_temp_ph$temp_hobo_c
 y3 <- lol_detide_temp_ph$tide
 x <- lol_detide_temp_ph$date_time
 
@@ -579,7 +578,7 @@ lol_wave_join <- full_join(lol_july, lol_wave) %>%
   filter(date_time > ymd_hms("2021-07-20 00:00:00"),
          date_time < ymd_hms("2021-07-25 00:00:00"))
 
-y1 <- lol_wave_join$temp_c
+y1 <- lol_wave_join$temp_hobo_c
 y2 <- lol_wave_join$wvht
 y3 <- lol_wave_join$tide
 x <- lol_wave_join$date_time
@@ -633,7 +632,7 @@ lol_superfilter <- lol_detide %>%
 #2.3, 2.68 are also good candidates - I want to make sure I'm not over-filtering
 
 y1 <- lol_superfilter$p_h
-y2 <- lol_superfilter$temp_c
+y2 <- lol_superfilter$temp_hobo_c
 y3 <- lol_superfilter$tide_height
 x <- lol_superfilter$date_time
 
@@ -671,7 +670,7 @@ lol_high <- lol_tide_options %>%
 
 ggplot(lol_tide_options, aes(x=date_time)) +
   geom_line(aes(y=p_h)) +
-  geom_line(aes(y=temp_c)) +
+  geom_line(aes(y=temp_hobo_c)) +
   #geom_line(aes(y=p_h, color=tide_med)) +
   #geom_line(aes(y=p_h, color=tide_high)) +
   #geom_line(aes(y=temp_c), color="blue") +
@@ -681,7 +680,7 @@ ggplot(lol_tide_options, aes(x=date_time)) +
   theme_bw() +
   theme(axis.text.x=element_text(angle=90))
 
-ggsave(here("figures", "lol_high.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "lol_high.png"), height=20, width=40, units="cm")
 
 ph_low <- lol_tide_options %>%
   filter(tide_low=="high") %>%
@@ -795,8 +794,7 @@ ggplot(alg_plot, aes(x=date_time, y=value, group=data)) +
 ```{r}
 #Check difference between Durafet and HOBO temperature measurements
 alg_diff <- alg_all %>%
-  mutate(temp_diff=temp_hobo_c - temp_durafet_c)
-%>%
+  mutate(temp_diff=temp_hobo_c - temp_durafet_c) %>%
   filter(temp_diff > 0,
          temp_diff < 1.3)
 
@@ -805,7 +803,7 @@ ggplot(data = alg_diff, aes(x=date_time)) +
   ylab("temp diff between durafet and hobo") +
   xlab("date")
 
-ggsave(here("figures", "alg_tempdiff.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "alg_tempdiff.png"), height=20, width=40, units="cm")
 ```
 
 ### Remove anomalous measurements at beginning and end of deployment (sensor was likely inundated with sand)
@@ -815,8 +813,8 @@ alg_desand <- alg_all %>%
          date_time <= ymd_hms("2021-11-07 17:00:00")) %>% #and then here's a period of time at the end of deployment that needs to be removed
   mutate(p_h=ifelse((date_time > ymd_hms("2021-10-23 16:45:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, p_h),
          temp_hobo_c=ifelse((date_time > ymd_hms("2021-10-23 16:45:00") & date_time < ymd_hms("2021-11-02 10:45:00")), NA, temp_hobo_c)) %>% #since this is in the middle of the dataset, replace values with "NA" rather than remove entirely (otherwise when plotting, R will fill in the missing space with a straight line)
-  distinct(date_time, .keep_all = TRUE) %>% #remove duplicated data (not sure where those came from)
-  rename(temp_c=temp_hobo_c) #rename temperature column
+  distinct(date_time, .keep_all = TRUE)# %>% #remove duplicated data (not sure where those came from)
+  #rename(temp_c=temp_hobo_c) #rename temperature column
 
 ggplot(alg_desand, aes(x=date_time, y=p_h)) +
   geom_line(size=0.7) +
@@ -836,7 +834,7 @@ alg_detide <- alg_desand %>%
 
 ggplot(alg_detide, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
-  geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=temp_hobo_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("4 days"), 
                     labels = date_format("%m/%d %H:%m")) +
@@ -868,7 +866,7 @@ alg_highchart <- alg_detide %>%
 # filter(tide>=0.9)
 
 y1 <- alg_highchart$p_h
-y2 <- alg_highchart$temp_c
+y2 <- alg_highchart$temp_hobo_c
 y3 <- alg_highchart$tide_heigh
 x <- alg_highchart$date_time
 
@@ -893,9 +891,9 @@ There's still some noise at a few dates, let's filter those dates out of the dat
 ```{r}
 alg_no_noise <- alg_detide %>%
   mutate(p_h=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, p_h),
-         temp_c=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, temp_c)) %>% #super noisy section of time for pH (not temp though) in mid July
+         temp_hobo_c=ifelse((date_time > ymd_hms("2021-07-17 11:00:00") & date_time < ymd_hms("2021-07-17 19:30:00")), NA, temp_hobo_c)) %>% #super noisy section of time for pH (not temp though) in mid July
   mutate(p_h=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, p_h),
-         temp_c=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, temp_c)) %>% #super noisy section of time for pH (not temp) in early September
+         temp_hobo_c=ifelse((date_time > ymd_hms("2021-09-09 10:15:00") & date_time < ymd_hms("2021-09-09 13:00:00")), NA, temp_hobo_c)) %>% #super noisy section of time for pH (not temp) in early September
   filter(!(date_time %in% (ymd_hms("2021-06-19 10:15:00",
                                    "2021-06-29 14:15:00",
                                    "2021-06-29 15:30:00",
@@ -924,7 +922,7 @@ alg_no_noise <- alg_detide %>%
 
 ggplot(alg_no_noise, aes(x=date_time)) +
   geom_line(aes(y=p_h), color="#009E73") + 
-  geom_line(aes(y=temp_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
+  geom_line(aes(y=temp_hobo_c), color="#D55E00") + # Divide by 10 to get the same range than the temperature
   geom_line(aes(y=tide_height), color="#0072B2") + # Divide by 10 to get the same range than the temperature
   scale_x_datetime(breaks = scales::date_breaks("4 days"), 
                     labels = date_format("%m/%d %H:%m")) +
@@ -942,8 +940,14 @@ ggplot(alg_no_noise, aes(x=date_time)) +
 
 # Now let's actually plot up a comparison of the pH values across sites
 ```{r}
+bml_detide_temp <- bml_detide_temp %>%
+  select(-temp_hobo_c) %>%
+  rename(temp_hobo_c=temp_c)
+
 #join all sites into one df (and remove diff columns)
-ph_all <- merge_recurse(list(alg_no_noise, lol_detided, bml_detide_temp))
+ph_all <- merge_recurse(list(alg_no_noise, lol_detided, bml_detide_temp)) %>%
+  mutate(site = factor(site, levels = c("Alegria", "Bodega Bay", "Lompoc Landing"))) %>%
+  arrange(site, date_time)
 
 ph_all_detide <- ph_all %>%
   filter(tide=="high")
@@ -975,7 +979,7 @@ ggplot(ph_all_detide, aes(x=date_time, y=p_h, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "sensors", "ph_all_detide_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_all_detide_final.png"), height=20, width=40, units="cm")
 
 # For presentations, highlight one line at a time per site
 #BML focal
@@ -996,7 +1000,7 @@ ggplot(ph_all_detide, aes(x=date_time, y=p_h, group=site)) +
         legend.position = "none") +
   scale_alpha_manual(values=c(0.5,0.5,1))
 
-ggsave(here("figures", "sensors", "ph_bml_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_bml_final.png"), height=20, width=40, units="cm")
 
 #LOL focal
 ph_all_detide$site <- factor(ph_all_detide$site, levels=c("Alegria","Bodega Bay", "Lompoc Landing"))
@@ -1016,7 +1020,7 @@ ggplot(ph_all_detide, aes(x=date_time, y=p_h, group=site)) +
         legend.position = "none") +
   scale_alpha_manual(values=c(0.5,0.5,1))
 
-ggsave(here("figures", "sensors", "ph_lol_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_lol_final.png"), height=20, width=40, units="cm")
 
 #ALG focal
 ph_all_detide$site <- factor(ph_all_detide$site, levels=c("Lompoc Landing","Bodega Bay", "Alegria"))
@@ -1036,26 +1040,26 @@ ggplot(ph_all_detide, aes(x=date_time, y=p_h, group=site)) +
         legend.position = "none") +
   scale_alpha_manual(values=c(0.5,0.5,1))
 
-ggsave(here("figures", "sensors", "ph_alg_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "ph_alg_final.png"), height=20, width=40, units="cm")
 
 # Save the "final" df to a .csv file
 write.csv(ph_all, here("data", "sensors", "ph_clean_final.csv"), row.names = FALSE)
-write.csv(ph_all_detide, here("data", "sensors", "ph_detide_final.csv"), row.names = FALSE)
+#write.csv(ph_all_detide, here("data", "sensors", "ph_detide_final.csv"), row.names = FALSE)
 ```
 
 # Let's also compare temperature across sites
 ```{r}
 #add site identity before joining
 bml_temp_join <- bml_detide_temp %>%
-  select(date_time, temp_c, p_h, tide) %>%
+  select(date_time, temp_hobo_c, p_h, tide) %>%
   mutate(site = "Bodega Bay")
 
 lol_temp_join <- lol_detided %>%
-  select(date_time, temp_c, p_h, tide) %>%
+  select(date_time, temp_hobo_c, p_h, tide) %>%
   mutate(site = "Lompoc Landing")
 
 alg_join <- alg_no_noise %>%
-  select(date_time, temp_c, p_h, tide) %>%
+  select(date_time, temp_hobo_c, p_h, tide) %>%
   mutate(site = "Alegria")
 
 #join these all together into one df
@@ -1072,7 +1076,7 @@ pal <- c(
   "Bodega Bay" = "#0072B2"
 )
 
-ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
+ggplot(temp_all, aes(x=date_time, y=temp_hobo_c, group=site)) +
   geom_line(aes(color=site), size=0.7, alpha=0.8) +
   scale_color_manual(values = pal) + #color lines by custom site color palette
   scale_x_datetime(breaks = scales::date_breaks("1 week"), 
@@ -1086,7 +1090,7 @@ ggplot(temp_all, aes(x=date_time, y=temp_c, group=site)) +
         axis.title.y=element_text(size=15),
         legend.position = "none")
 
-ggsave(here("figures", "sensors", "temp_all_final.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "temp_all_final.png"), height=20, width=40, units="cm")
 ```
 
 # Let's try to combine pH and temperature plots into one grid
@@ -1100,9 +1104,9 @@ ggsave(here("figures", "sensors", "temp_all_final.png"), height=20, width=40, un
 all <- temp_all %>%
   filter(tide=="high") %>%
   select(-tide) %>%
-  relocate(site, date_time, temp_c, p_h) %>%
+  relocate(site, date_time, temp_hobo_c, p_h) %>%
   rename(Site=site) %>%
-  pivot_longer(cols=temp_c:p_h,
+  pivot_longer(cols=temp_hobo_c:p_h,
                names_to = "group",
                values_to = "value")
 
@@ -1143,7 +1147,7 @@ ggplot(all, aes(x=date_time, y=value, group=group)) +
         strip.placement = "outside") + #place the strip outside of the plot
   guides(colour = guide_legend(override.aes = list(size=5, alpha = 1)))
 
-ggsave(here("figures", "sensors", "temp_all_facet_final.png"), height=50, width=60, units="cm")
+#ggsave(here("figures", "sensors", "temp_all_facet_final.png"), height=50, width=60, units="cm")
 ```
 
 Now, for some "Chan et al 2017" style analyses
@@ -1151,44 +1155,59 @@ Now, for some "Chan et al 2017" style analyses
 # Look at the frequency of pH values below 7.8 
 ```{r}
 ph_7.8 <- ph_all %>%
-  filter(tide=="high") %>%
+    filter((site == "Bodega Marine Lab" & tide == "high") | (site != "Bodega Marine Lab")) %>%  # Filter high tide for BML, keep both for others
+  #filter(tide=="high") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00")) %>% #only select dates where all sensors were deployed (6/18 until 10/08)
   #drop_na(c(tide)) %>%
-  mutate(threshold = ifelse(p_h<7.8, "below", "above")) %>%
+  mutate(threshold = ifelse(p_h<=7.8, "below", "above")) %>%
   filter(!is.na(p_h)) %>% #remove the times with anomalous pH readings that were replaced with NA
   group_by(site, threshold) %>%
   summarize(tot_observations = n()) %>%
   ungroup()
   #add_row(site="Alegria", threshold="below", tot_observations=0) #add this row because Alegria has 0 observations below 7.8 (for now...)
 
-#Get total number of observations - use double square brackets because it's a tibble
-alg_n <- ph_7.8[[1,3]] + ph_7.8[[2,3]]
-lol_n <- ph_7.8[[3,3]] + ph_7.8[[4,3]]
-bml_n <- ph_7.8[[5,3]] + ph_7.8[[6,3]]
+ph_prop <- ph_7.8 %>%
+  group_by(site) %>%
+  mutate(total_site_observations = sum(tot_observations)) %>%
+  filter(threshold == "below") %>%  # Keep only "below" rows
+  mutate(proportion_below_7.8 = tot_observations / total_site_observations) %>%
+  select(site, proportion_below_7.8)  # Select only site and proportion
 
-#Get frequency of pH values below 7.8
-alg_7.8 <- ph_7.8[[2,3]]/alg_n
-lol_7.8 <- ph_7.8[[4,3]]/lol_n
-bml_7.8 <- ph_7.8[[6,3]]/bml_n
+bml_7.8 <- ph_prop %>%
+  filter(site == "Bodega Bay") %>%
+  select(proportion_below_7.8) %>%
+  pull()
+
+lol_7.8 <- ph_prop %>%
+  filter(site == "Lompoc Landing") %>%
+  select(proportion_below_7.8) %>%
+  pull()
+
+alg_7.8 <- ph_prop %>%
+  filter(site == "Alegria") %>%
+  select(proportion_below_7.8) %>%
+  pull()
 ```
+
 
 # Create a nice table directly comparing conditions between sites
 ```{r}
 # Create de-tided dfs, select only times when all sensors where out at all locations (6/18 until 10/08)
-alg_table <- alg_no_noise %>%
-  filter(tide=="high") %>%
+alg_table <- ph_all %>% 
+  filter(site=="Alegria") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00")) %>%
   filter(!is.na(p_h)) #create df for ALG without NA values
 
-lol_table <- lol_detided %>%
-    filter(tide=="high") %>%
+lol_table <-  ph_all %>% 
+  filter(site=="Lompoc Landing") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00"))
 
-bml_table <- bml_detide_temp %>%
-    filter(tide=="high") %>%
+bml_table <- ph_all %>%
+    filter(site=="Bodega Bay",
+           tide=="high") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00"))
   
@@ -1216,63 +1235,95 @@ bml_cv <- (bml_sd/bml_mean)*100 #coefficient of variation
 
 ph_table <- tribble(
   ~"Site", ~"Min pH", ~"Max pH", ~"Median pH",  ~"CV", ~"< 7.8", 
-  "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv, bml_7.8,
+  "Bodega Marine Reserve", bml_min, bml_max, bml_median, bml_cv, bml_7.8,
   "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv, lol_7.8,
   "Alegria", alg_min, alg_max, alg_median, alg_cv, alg_7.8) 
 
 ph_table %>%
-  gt() %>%
-  fmt_number(
-  columns = c("Min pH":"Median pH"),
-  rows = everything(),
-  decimals = 2) %>%
-  data_color(
-    columns = c("Site"),
-    colors = scales::col_factor( # <- bc it's a factor
-      palette = c("#D55E00","#0072B2","#009E73"),
-      domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
-  gtsave(here("figures", "sensors", "table_ph_final.png"))
+  kable(format = "html", digits = 2) %>%
+  # Styling for the table
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE) %>%  # Make header bold
+  # Set the background to white for all columns except the 'Site' column and text color to black
+  column_spec(2:6, background = "white", color = "black") %>%  # Apply white background to all columns except Site
+  # Apply custom color mapping to the "Site" column (Location)
+  column_spec(1, 
+              background = case_when(
+                ph_table$Site == "Bodega Marine Reserve" ~ "#0072B2",
+                ph_table$Site == "Lompoc Landing" ~ "#009E73", 
+                ph_table$Site == "Alegria" ~ "#D55E00",
+                TRUE ~ "white"
+              ), color = "black", bold = TRUE) %>%  # Set text color to black for Site column
+  # Header row styling
+  row_spec(0, bold = TRUE, color = "black", background = "white")
+
+#html_file <- "table.html"
+#save_html(html_table, file = html_file)
+
+```
+
+
+```{r}
+#gtsave(here("figures", "dissertation", "table_ph_final.png"))
 
 # Calculate min, max, average temp values for each site
-alg_min <- (min(alg_table$temp_c))
-alg_max <- (max(alg_table$temp_c))
-alg_median <- (median(alg_table$temp_c))
-alg_mean <- (mean(alg_table$temp_c))
-alg_sd <- (sd(alg_table$temp_c))
+alg_min <- (min(alg_table$temp_hobo_c))
+alg_max <- (max(alg_table$temp_hobo_c))
+alg_median <- (median(alg_table$temp_hobo_c))
+alg_mean <- (mean(alg_table$temp_hobo_c))
+alg_sd <- (sd(alg_table$temp_hobo_c))
 alg_cv <- (alg_sd/alg_mean)*100 #coefficient of variation
 
-lol_min <- (min(lol_table$temp_c))
-lol_max <- (max(lol_table$temp_c))
-lol_median <- (median(lol_table$temp_c))
-lol_mean <- (mean(lol_table$temp_c))
-lol_sd <- (sd(lol_table$temp_c))
+lol_min <- (min(lol_table$temp_hobo_c))
+lol_max <- (max(lol_table$temp_hobo_c))
+lol_median <- (median(lol_table$temp_hobo_c))
+lol_mean <- (mean(lol_table$temp_hobo_c))
+lol_sd <- (sd(lol_table$temp_hobo_c))
 lol_cv <- (lol_sd/lol_mean)*100 #coefficient of variation
 
-bml_min <- (min(bml_table$temp_c))
-bml_max <- (max(bml_table$temp_c))
-bml_median <- (median(bml_table$temp_c))
-bml_mean <- (mean(bml_table$temp_c))
-bml_sd <- (sd(bml_table$temp_c))
+bml_min <- (min(bml_table$temp_hobo_c))
+bml_max <- (max(bml_table$temp_hobo_c))
+bml_median <- (median(bml_table$temp_hobo_c))
+bml_mean <- (mean(bml_table$temp_hobo_c))
+bml_sd <- (sd(bml_table$temp_hobo_c))
 bml_cv <- (bml_sd/bml_mean)*100 #coefficient of variation
 
 temp_table <- tribble(
   ~"Site", ~"Min temp", ~"Max temp", ~"Median temp",  ~"CV", 
-  "Bodega Marine Lab", bml_min, bml_max, bml_median, bml_cv,
+  "Bodega Marine Reserve", bml_min, bml_max, bml_median, bml_cv,
   "Lompoc Landing", lol_min, lol_max, lol_median, lol_cv,
   "Alegria", alg_min, alg_max, alg_median, alg_cv) 
 
 temp_table %>%
-  gt() %>%
-  fmt_number(
-  columns = c("Min temp":"Median temp"),
-  rows = everything(),
-  decimals = 2) %>%
-  data_color(
-    columns = c("Site"),
-    colors = scales::col_factor( # <- bc it's a factor
-      palette = c("#D55E00","#0072B2","#009E73"),
-      domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
-  gtsave(here("figures", "sensors", "table_temp_final.png"))
+  kable(format = "html", digits = 2) %>%
+  # Styling for the table
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE) %>%  # Make header bold
+  # Set the background to white for all columns except the 'Site' column and text color to black
+  column_spec(2:5, background = "white", color = "black") %>%  # Apply white background to all columns except Site
+  # Apply custom color mapping to the "Site" column (Location)
+  column_spec(1, 
+              background = case_when(
+                ph_table$Site == "Bodega Marine Reserve" ~ "#0072B2",
+                ph_table$Site == "Lompoc Landing" ~ "#009E73", 
+                ph_table$Site == "Alegria" ~ "#D55E00",
+                TRUE ~ "white"
+              ), color = "black", bold = TRUE) %>%  # Set text color to black for Site column
+  # Header row styling
+  row_spec(0, bold = TRUE, color = "black", background = "white")
+
+# temp_table %>%
+#   gt() %>%
+#   fmt_number(
+#   columns = c("Min temp":"Median temp"),
+#   rows = everything(),
+#   decimals = 2) %>%
+#   data_color(
+#     columns = c("Site"),
+#     colors = scales::col_factor( # <- bc it's a factor
+#       palette = c("#D55E00","#0072B2","#009E73"),
+#       domain = c("Bodega Marine Lab", "Lompoc Landing", "Alegria"))) %>%
+#   gtsave(here("figures", "dissertation", "temp_table_final.png"))
 ```
 
 # Summary (what I did)
@@ -1471,7 +1522,7 @@ ggplot(bml_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
   guides(size = FALSE) +
   labs(x = "wave height", y = "tide height", color = "time of day")
 
-ggsave(here("figures", "wave-bml.png"), height=20, width=30, units="cm")
+#ggsave(here("figures", "wave-bml.png"), height=20, width=30, units="cm")
 ```
  
 Well, this doesn't make much sense. There isn't a clear waveheight that I can filter, given there are only 4 instances of 3C drops in the middle of the day (between 10am and 5pm) when the tide was going out/coming in (between -0.1 and 0.5). 
@@ -1544,7 +1595,7 @@ ggplot(lol_hh_wvht_tide, aes(x=wvht, y=tide_height, group=im_event)) +
   guides(size = FALSE) +
   labs(x = "wave height", y = "tide height", color = "time of day")
 
-ggsave(here("figures", "wave-lol_1.4.png"), height=20, width=30, units="cm")
+#ggsave(here("figures", "wave-lol_1.4.png"), height=20, width=30, units="cm")
 ```
 When tide is above 3.0, 3C drops are exclusively midday
 
@@ -1593,7 +1644,7 @@ ggplot(lol_hh_fil, aes(x=tide_height, y=wvht))+
   geom_point() +
   labs(x="Tide height", y="Wave height")
 
-ggsave(here("figures", "sensors", "0.6_drop.png"), height=20, width=40, units="cm")
+#ggsave(here("figures", "sensors", "0.6_drop.png"), height=20, width=40, units="cm")
 ```
 
 
