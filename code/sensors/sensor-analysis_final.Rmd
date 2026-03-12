@@ -1195,13 +1195,15 @@ alg_7.8 <- ph_prop %>%
 ```{r}
 # Create de-tided dfs, select only times when all sensors where out at all locations (6/18 until 10/08)
 alg_table <- ph_all %>% 
-  filter(site=="Alegria") %>%
+  filter(site=="Alegria",
+         tide=="high") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00")) %>%
   filter(!is.na(p_h)) #create df for ALG without NA values
 
 lol_table <-  ph_all %>% 
-  filter(site=="Lompoc Landing") %>%
+  filter(site=="Lompoc Landing",
+         tide=="high") %>%
   filter(date_time > ymd_hms("2021-06-18 01:00:00"),
          date_time < ymd_hms("2021-10-08 23:45:00"))
 
